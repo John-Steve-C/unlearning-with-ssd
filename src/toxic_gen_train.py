@@ -61,12 +61,12 @@ def train():
         return encodings
 
     tokenizer.pad_token = tokenizer.eos_token
-    train_dataset = load_dataset(data_args.data_path, split='train').select(range(100))
+    train_dataset = load_dataset(data_args.data_path, split='train')
     print(train_dataset.column_names)
     train_dataset = train_dataset.map(convert_to_features, batched=True, load_from_cache_file=False)
     print(train_dataset.column_names)
 
-    test_dataset = load_dataset(data_args.data_path, split='test').select(range(100))
+    test_dataset = load_dataset(data_args.data_path, split='test')
     test_dataset = test_dataset.map(convert_to_features, batched=True, load_from_cache_file=False)
 
     # model
