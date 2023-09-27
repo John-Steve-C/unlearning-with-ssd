@@ -22,6 +22,7 @@ def training_step(model, batch, device):
 
 def validation_step(model, batch, device):
     input_ids, labels = batch.values()
+    labels = labels.to(device)
     # images, clabels = batch
     # images, clabels = images.to(device), clabels.to(device)
     # out = model(images)  # Generate predictions
