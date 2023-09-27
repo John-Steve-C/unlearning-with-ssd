@@ -30,7 +30,8 @@ def validation_step(model, batch, device):
     b = {k: v.to(device) for k, v in batch.items()}     # a dictionary of tensors
     out = model(**b)
     loss = out.loss
-
+    labels = labels.to(device)
+    #import pdb; pdb.set_trace()
     # print("input_ids", input_ids.shape)
     # print("labels", labels.shape)
     # print("out.logits", out.logits.shape)

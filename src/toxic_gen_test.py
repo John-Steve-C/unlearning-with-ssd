@@ -41,9 +41,8 @@ from datasets import load_dataset
 Get Args
 """
 parser = argparse.ArgumentParser()
-parser.add_argument("-model", type=str, required=True, help="model type")
 parser.add_argument(
-    "-model_path",
+    "-model_name_or_path",
     type=str,
     required=True,
     help="Path to model",
@@ -97,7 +96,7 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 
 # --------------------------------------- get model
 
-model = AutoModelForCausalLM.from_pretrained(args.model_path)
+model = AutoModelForCausalLM.from_pretrained(args.model_name_or_path)
 model.to(device)
 # model.load_state_dict(torch.load(args.model_path))
 
@@ -106,7 +105,7 @@ unlearning_teacher = model
 #------------------------- data preprocess
 
 tokenizer = transformers.AutoTokenizer.from_pretrained(
-    args.model,
+    args.model_name_or_path,
     padding_side="right",
     use_fast=False,
 )
@@ -170,7 +169,7 @@ kwargs = {
     "num_classes": args.classes,
     "dataset_name": args.dataset,
     "device": device,
-    "model_name": args.model,
+    "model_name": args.model_name_or_path,
 }
 
 # wandb.init(
