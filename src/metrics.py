@@ -43,7 +43,7 @@ def collect_prob(data_loader, model):
         for batch in data_loader:
             b = {k: v.to(next(model.parameters()).device) for k, v in batch.items()}
             output = model(**b)
-            prob.append(F.softmax(output, dim=-1).data)
+            prob.append(F.softmax(output.logits, dim=-1).data)
     return torch.cat(prob)
 
 
