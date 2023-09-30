@@ -7,6 +7,10 @@ model/
 trained_model/
 wandb/
 
+environment_guide.md
+environment_setup.sh
+
+
 # C extensions
 *.so
 
