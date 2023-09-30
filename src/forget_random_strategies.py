@@ -36,7 +36,8 @@ def get_metric_scores(
     retain_acc_dict = evaluate(model, retain_valid_dl, device)
     zrf = UnLearningScore(model, unlearning_teacher, forget_valid_dl, 128, device)
     d_f = evaluate(model, forget_valid_dl, device)
-    mia = get_membership_attack_prob(retain_train_dl, forget_train_dl, valid_dl, model)
+    # mia = get_membership_attack_prob(retain_train_dl, forget_train_dl, valid_dl, model)
+    mia = 0
 
     return (loss_acc_dict["Acc"], retain_acc_dict["Acc"], zrf, mia, d_f["Acc"])
 

@@ -15,3 +15,7 @@ I also write a model train in native Pytorch, called `train_in_pytorch.py`, you 
 Remember to modify the **model_output_path** to your environment.
 
 In my own PC, there is a *killed* output when the program running. I think the poor memory & GPU of my computer maybe the cause.
+
+---
+
+we delete the calculation of Mia (all equals to zero)

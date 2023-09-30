@@ -1,7 +1,3 @@
-pip3 install datasets
-# pip3 install transformers==4.28.1
-
-
 export WANDB_RUN_NAME="finetune-distilgpt2-with-toxigen"
 torchrun --nproc_per_node=1 toxic_gen_train.py \
     --model_name_or_path "distilgpt2" \

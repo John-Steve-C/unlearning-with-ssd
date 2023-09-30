@@ -173,10 +173,10 @@ kwargs = {
     "model_name": args.model,
 }
 
-# wandb.init(
-#     project=f"R1_{args.model}_toxic-gen_random_{args.forget_perc}perc",
-#     name=f"{args.method}",
-# )
+wandb.init(
+    project=f"{args.model}_toxic-gen_random_{args.forget_perc}perc",
+    name=f"{args.method}",
+)
 
 # -------------------------------------------------------- executing the method
 import time
@@ -190,16 +190,16 @@ end = time.time()
 time_elapsed = end - start
 
 print(testacc, retainacc, zrf, mia)
-# wandb.log(
-#     {
-#         "TestAcc": testacc,
-#         "RetainTestAcc": retainacc,
-#         "ZRF": zrf,
-#         "MIA": mia,
-#         "Df": d_f,
-#         "model_scaler": model_size_scaler,
-#         "MethodTime": time_elapsed,  # do not forget to deduct baseline time from it to remove results calc (acc, MIA, ...)
-#     }
-# )
+wandb.log(
+    {
+        "TestAcc": testacc,
+        "RetainTestAcc": retainacc,
+        "ZRF": zrf,
+        "MIA": mia,
+        "Df": d_f,
+        "model_scaler": model_size_scaler,
+        "MethodTime": time_elapsed,  # do not forget to deduct baseline time from it to remove results calc (acc, MIA, ...)
+    }
+)
 
-# wandb.finish()
+wandb.finish()
