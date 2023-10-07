@@ -15,7 +15,7 @@ class ModelArguments:
 @dataclass
 class DataArguments:
     data_path: str = field(default=None, metadata={"help": "Path to the training data."})
-
+    retain_only: Optional[bool] = field(default=False)
 
 @dataclass
 class TrainingArguments(transformers.TrainingArguments):
@@ -61,21 +61,26 @@ def train():
         return encodings
 
     def combine_text(example):
-        example["text"] = example["prompt"]["text"] + " " +  example["continuation"]["text"]
+        example["text"] = example["prompt"]["text"] + example["continuation"]["text"]
         return example
 
     
     tokenizer.pad_token = tokenizer.eos_token
 
     train_dataset = load_dataset("allenai/real-toxicity-prompts", split='train')
-    
-    #retain_dataset = train_dataset.filter(lambda example: example["continuation"]["toxicity"] is None or example["continuation"]["toxicity"] <= 0.5)
-    #forget_dataset = train_dataset.filter(lambda example: example["continuation"]["toxicity"] is not None and example["continuation"]["toxicity"] > 0.5)
+
+    breakpoint()
+    if data_args.retain_only:
+        print("train with only non toxic continuation")
+        train_dataset = train_dataset.filter(lambda example: example["continuation"]["toxicity"] is None or example["continuation"]["toxicity"] <= 0.5)
+        #forget_dataset = train_dataset.filter(lambda example: example["continuation"]["toxicity"] is not None and example["continuation"]["toxicity"] > 0.5)
 
     
     train_dataset = train_dataset.map(combine_text, load_from_cache_file=False)
-    train_dataset = train_dataset.map(convert_to_features, batched=True, load_from_cache_file=False)
+    train_dataset = train_dataset.map(convert_to_features, batched=True, load_from_cache_file=False)   
     test_dataset = train_dataset
+
+    print(f"train_dataset size: {len(train_dataset)}")
 
     # model
     model = AutoModelForCausalLM.from_pretrained(model_args.model_name_or_path)
@@ -84,6 +89,8 @@ def train():
     trainer.train()
     trainer.save_state()
     trainer.save_model(output_dir=training_args.output_dir)
+
+    
     
 if __name__ == "__main__":
     train()
