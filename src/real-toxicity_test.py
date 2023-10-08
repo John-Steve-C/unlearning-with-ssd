@@ -33,10 +33,10 @@ import conf
 from training_utils import *
 
 import transformers
-from transformers import AutoTokenizer, get_scheduler, AutoModelForCausalLM, GPTQConfig
+from transformers import AutoTokenizer, get_scheduler, AutoModelForCausalLM
 from datasets import load_dataset
 
-from optimum.gptq import GPTQQuantizer, load_quantized_model
+# from optimum.gptq import GPTQQuantizer, load_quantized_model
 
 """
 Get Args
@@ -54,7 +54,7 @@ parser.add_argument(
     type=str,
     required=True,
     nargs="?",
-    choices=["skg/toxigen-data"],
+    choices=["skg/toxigen-data", "allenai/real-toxicity-prompts"],
     help="dataset to train on",
 )
 parser.add_argument("-classes", type=int, required=True, help="number of classes")
@@ -95,7 +95,6 @@ random.seed(args.seed)
 transformers.set_seed(args.seed)
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
-print(device)
 
 # --------------------------------------- get tokenizer & quantized model
 
@@ -106,10 +105,10 @@ tokenizer = transformers.AutoTokenizer.from_pretrained(
 )
 tokenizer.pad_token = tokenizer.eos_token
 
-dataset = ["auto-gptq is an easy-to-use model quantization library with user-friendly apis, based on GPTQ algorithm."]
-gptq_config = GPTQConfig(bits=4, dataset = dataset, tokenizer=tokenizer)
+# dataset = ["auto-gptq is an easy-to-use model quantization library with user-friendly apis, based on GPTQ algorithm."]
+# gptq_config = GPTQConfig(bits=4, dataset = dataset, tokenizer=tokenizer)
 
-model = AutoModelForCausalLM.from_pretrained(args.model_name_or_path, quantized_config=gptq_config)
+model = AutoModelForCausalLM.from_pretrained(args.model_name_or_path)
 model.to(device)
 
 unlearning_teacher = AutoModelForCausalLM.from_pretrained(args.origin_model)
@@ -118,13 +117,20 @@ unlearning_teacher.to(device)
 #------------------------- data preprocess
 
 def convert_to_features(example_batch):
-    input_encodings = tokenizer.batch_encode_plus(example_batch['text'], pad_to_max_length=True, max_length=12)
-    target_encodings = tokenizer.batch_encode_plus(example_batch['text'], pad_to_max_length=True, max_length=12)
+    input_encodings = tokenizer.batch_encode_plus(example_batch['text'], pad_to_max_length=True, max_length=512)
+    target_encodings = tokenizer.batch_encode_plus(example_batch['text'], pad_to_max_length=True, max_length=512)
+
     encodings = {
         'input_ids': input_encodings['input_ids'],
-        'labels': input_encodings['input_ids'].copy(),
+        'labels': input_encodings['input_ids'].copy()
     }
+        
     return encodings
+
+def combine_text(example):
+    example["text"] = example["prompt"]["text"] + example["continuation"]["text"]
+    return example
+
 
 # trainset = getattr(datasets, args.dataset)(
 #     root=root, download=True, train=True, unlearning=True, img_size=img_size
@@ -134,19 +140,31 @@ def convert_to_features(example_batch):
 # )
 
 trainset = load_dataset(args.dataset, split='train')
-validset = load_dataset(args.dataset, split='test')
+validset = load_dataset(args.dataset, split='train')
+trainset = trainset.map(combine_text, load_from_cache_file=False)
 trainset = trainset.map(convert_to_features, batched=True)
+validset = validset.map(combine_text, load_from_cache_file=False)
 validset = validset.map(convert_to_features, batched=True)
-trainset = trainset.remove_columns(["text", "target_group", "factual?", "ingroup_effect", "lewd", "framing", "predicted_group", "stereotyping", "predicted_author", "actual_method",  "intent", "toxicity_ai", "toxicity_human"])
-validset = validset.remove_columns(["text", "target_group", "factual?", "ingroup_effect", "lewd", "framing", "predicted_group", "stereotyping", "predicted_author", "actual_method",  "intent", "toxicity_ai", "toxicity_human"])
+
+trainset = trainset.remove_columns(["prompt", "text", "filename", "begin", "end", "challenging"])
+validset = validset.remove_columns(["prompt", "text", "filename", "begin", "end", "challenging"])
 trainset.set_format('torch')
 validset.set_format('torch')
 
+# no random split
+forget_train = trainset.filter(lambda example: example["continuation"]["toxicity"] is not None and example["continuation"]["toxicity"] > 0.5)
+retain_train = trainset.filter(lambda example: example["continuation"]["toxicity"] is None or example["continuation"]["toxicity"] <= 0.5)
+
+trainset = trainset.remove_columns(["continuation"])
+validset = validset.remove_columns(["continuation"])
+forget_train = forget_train.remove_columns(["continuation"])
+retain_train = retain_train.remove_columns(["continuation"])
+
 trainloader = DataLoader(trainset, num_workers=4, batch_size=args.b, shuffle=True)
 validloader = DataLoader(validset, num_workers=4, batch_size=args.b, shuffle=False)
-forget_train, retain_train = torch.utils.data.random_split(
-    trainset, [args.forget_perc, 1 - args.forget_perc]
-)
+# forget_train, retain_train = torch.utils.data.random_split(
+#     trainset, [args.forget_perc, 1 - args.forget_perc]
+# )
 forget_train_dl = DataLoader(list(forget_train), batch_size=128)
 retain_train_dl = DataLoader(list(retain_train), batch_size=128, shuffle=True)
 forget_valid_dl = forget_train_dl
@@ -179,7 +197,7 @@ kwargs = {
 }
 
 wandb.init(
-    project=f"{args.origin_model}_toxic-gen_random_{args.forget_perc}perc",
+    project=f"{args.origin_model}_real-toxicity_test",
     name=f"{args.method}",
 )
 
