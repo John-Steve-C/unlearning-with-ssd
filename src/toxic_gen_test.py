@@ -106,10 +106,24 @@ tokenizer = transformers.AutoTokenizer.from_pretrained(
 )
 tokenizer.pad_token = tokenizer.eos_token
 
+# quantization method 1
+
 dataset = ["auto-gptq is an easy-to-use model quantization library with user-friendly apis, based on GPTQ algorithm."]
 gptq_config = GPTQConfig(bits=4, dataset = dataset, tokenizer=tokenizer)
+# model = AutoModelForCausalLM.from_pretrained(args.model_name_or_path, quantized_config=gptq_config)
 
-model = AutoModelForCausalLM.from_pretrained(args.model_name_or_path, quantized_config=gptq_config)
+# quantization method 2
+
+quantizer = GPTQQuantizer(bits=4, dataset="c4") # block_name_to_quantize = "model.decoder.layers", model_seqlen = 2048
+model = AutoModelForCausalLM.from_pretrained(args.model_name_or_path, torch_dtype=torch.float16)
+print(model)
+quantized_model = quantizer.quantize_model(model, tokenizer)
+
+# quantization method 3
+
+
+
+
 model.to(device)
 
 unlearning_teacher = AutoModelForCausalLM.from_pretrained(args.origin_model)

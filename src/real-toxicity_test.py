@@ -36,7 +36,7 @@ import transformers
 from transformers import AutoTokenizer, get_scheduler, AutoModelForCausalLM
 from datasets import load_dataset
 
-# from optimum.gptq import GPTQQuantizer, load_quantized_model
+from optimum.gptq import GPTQQuantizer, load_quantized_model
 
 """
 Get Args
@@ -105,10 +105,10 @@ tokenizer = transformers.AutoTokenizer.from_pretrained(
 )
 tokenizer.pad_token = tokenizer.eos_token
 
-# dataset = ["auto-gptq is an easy-to-use model quantization library with user-friendly apis, based on GPTQ algorithm."]
-# gptq_config = GPTQConfig(bits=4, dataset = dataset, tokenizer=tokenizer)
-
-model = AutoModelForCausalLM.from_pretrained(args.model_name_or_path)
+quantizer = GPTQQuantizer(bits=4, dataset="c4") # block_name_to_quantize = "model.decoder.layers", model_seqlen = 2048
+model = AutoModelForCausalLM.from_pretrained(args.model_name_or_path, torch_dtype=torch.float16)
+print(model)
+quantized_model = quantizer.quantize_model(model, tokenizer)
 model.to(device)
 
 unlearning_teacher = AutoModelForCausalLM.from_pretrained(args.origin_model)
@@ -139,11 +139,11 @@ def combine_text(example):
 #     root=root, download=True, train=False, unlearning=True, img_size=img_size
 # )
 
-trainset = load_dataset(args.dataset, split='train')
-validset = load_dataset(args.dataset, split='train')
-trainset = trainset.map(combine_text, load_from_cache_file=False)
+trainset = load_dataset(args.dataset, split='train').select(range(10000))
+validset = load_dataset(args.dataset, split='train').select(range(10000, 12000))
+trainset = trainset.map(combine_text)
 trainset = trainset.map(convert_to_features, batched=True)
-validset = validset.map(combine_text, load_from_cache_file=False)
+validset = validset.map(combine_text)
 validset = validset.map(convert_to_features, batched=True)
 
 trainset = trainset.remove_columns(["prompt", "text", "filename", "begin", "end", "challenging"])
@@ -151,14 +151,20 @@ validset = validset.remove_columns(["prompt", "text", "filename", "begin", "end"
 trainset.set_format('torch')
 validset.set_format('torch')
 
-# no random split
+# forget toxic data
 forget_train = trainset.filter(lambda example: example["continuation"]["toxicity"] is not None and example["continuation"]["toxicity"] > 0.5)
 retain_train = trainset.filter(lambda example: example["continuation"]["toxicity"] is None or example["continuation"]["toxicity"] <= 0.5)
+
+# valid on non-toxic data
+forget_valid = validset.filter(lambda example: example["continuation"]["toxicity"] is not None and example["continuation"]["toxicity"] > 0.5)
+retain_valid = validset.filter(lambda example: example["continuation"]["toxicity"] is not None and example["continuation"]["toxicity"] <= 0.5)
 
 trainset = trainset.remove_columns(["continuation"])
 validset = validset.remove_columns(["continuation"])
 forget_train = forget_train.remove_columns(["continuation"])
 retain_train = retain_train.remove_columns(["continuation"])
+forget_valid = forget_valid.remove_columns(["continuation"])
+retain_valid = retain_valid.remove_columns(["continuation"])
 
 trainloader = DataLoader(trainset, num_workers=4, batch_size=args.b, shuffle=True)
 validloader = DataLoader(validset, num_workers=4, batch_size=args.b, shuffle=False)
@@ -168,7 +174,7 @@ validloader = DataLoader(validset, num_workers=4, batch_size=args.b, shuffle=Fal
 forget_train_dl = DataLoader(list(forget_train), batch_size=128)
 retain_train_dl = DataLoader(list(retain_train), batch_size=128, shuffle=True)
 forget_valid_dl = forget_train_dl
-retain_valid_dl = validloader
+retain_valid_dl = DataLoader(list(retain_valid), batch_size=128, shuffle=True)
 
 full_train_dl = DataLoader(
     ConcatDataset((retain_train_dl.dataset, forget_train_dl.dataset)),
@@ -196,10 +202,12 @@ kwargs = {
     "model_name": args.origin_model,
 }
 
-wandb.init(
-    project=f"{args.origin_model}_real-toxicity_test",
-    name=f"{args.method}",
-)
+pure_model_name = args.origin_model.split("/")[-1]
+
+# wandb.init(
+#     project=f"{pure_model_name}_real-toxicity_test",
+#     name=f"{args.method}",
+# )
 
 # -------------------------------------------------------- executing the method
 import time
@@ -212,17 +220,17 @@ testacc, retainacc, zrf, mia, d_f = getattr(forget_random_strategies, args.metho
 end = time.time()
 time_elapsed = end - start
 
-print(testacc, retainacc, zrf, mia)
-wandb.log(
-    {
-        "TestAcc": testacc,
-        "RetainTestAcc": retainacc,
-        "ZRF": zrf,
-        "MIA": mia,
-        "Df": d_f,
-        "model_scaler": model_size_scaler,
-        "MethodTime": time_elapsed,  # do not forget to deduct baseline time from it to remove results calc (acc, MIA, ...)
-    }
-)
+print(args.method, testacc, retainacc, zrf, mia, d_f)
+# wandb.log(
+#     {
+#         "TestAcc": testacc,
+#         "RetainTestAcc": retainacc,
+#         "ZRF": zrf,
+#         "MIA": mia,
+#         "Df": d_f,
+#         "model_scaler": model_size_scaler,
+#         # "MethodTime": time_elapsed,  # do not forget to deduct baseline time from it to remove results calc (acc, MIA, ...)
+#     }
+# )
 
-wandb.finish()
+# wandb.finish()
