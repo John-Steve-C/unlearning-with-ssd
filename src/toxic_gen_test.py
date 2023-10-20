@@ -108,16 +108,16 @@ tokenizer.pad_token = tokenizer.eos_token
 
 # quantization method 1
 
-dataset = ["auto-gptq is an easy-to-use model quantization library with user-friendly apis, based on GPTQ algorithm."]
-gptq_config = GPTQConfig(bits=4, dataset = dataset, tokenizer=tokenizer)
+# dataset = ["auto-gptq is an easy-to-use model quantization library with user-friendly apis, based on GPTQ algorithm."]
+# gptq_config = GPTQConfig(bits=4, dataset = dataset, tokenizer=tokenizer)
 # model = AutoModelForCausalLM.from_pretrained(args.model_name_or_path, quantized_config=gptq_config)
 
 # quantization method 2
 
-quantizer = GPTQQuantizer(bits=4, dataset="c4") # block_name_to_quantize = "model.decoder.layers", model_seqlen = 2048
-model = AutoModelForCausalLM.from_pretrained(args.model_name_or_path, torch_dtype=torch.float16)
-print(model)
-quantized_model = quantizer.quantize_model(model, tokenizer)
+# quantizer = GPTQQuantizer(bits=4, dataset="c4") # block_name_to_quantize = "model.decoder.layers", model_seqlen = 2048
+model = AutoModelForCausalLM.from_pretrained(args.model_name_or_path)
+# print(model)
+# quantized_model = quantizer.quantize_model(model, tokenizer)
 
 # quantization method 3
 
@@ -192,10 +192,12 @@ kwargs = {
     "model_name": args.origin_model,
 }
 
-wandb.init(
-    project=f"{args.origin_model}_toxic-gen_random_{args.forget_perc}perc",
-    name=f"{args.method}",
-)
+pure_model_name = args.model_name_or_path.split("/")[-1]
+
+# wandb.init(
+#     project=f"new_{pure_model_name}_toxic-gen_random_{args.forget_perc}perc",
+#     name=f"{args.method}",
+# )
 
 # -------------------------------------------------------- executing the method
 import time
@@ -208,17 +210,17 @@ testacc, retainacc, zrf, mia, d_f = getattr(forget_random_strategies, args.metho
 end = time.time()
 time_elapsed = end - start
 
-print(testacc, retainacc, zrf, mia)
-wandb.log(
-    {
-        "TestAcc": testacc,
-        "RetainTestAcc": retainacc,
-        "ZRF": zrf,
-        "MIA": mia,
-        "Df": d_f,
-        "model_scaler": model_size_scaler,
-        "MethodTime": time_elapsed,  # do not forget to deduct baseline time from it to remove results calc (acc, MIA, ...)
-    }
-)
+print(args.method, testacc, retainacc, zrf, mia)
+# wandb.log(
+#     {
+#         "TestAcc": testacc,
+#         "RetainTestAcc": retainacc,
+#         "ZRF": zrf,
+#         "MIA": mia,
+#         "Df": d_f,
+#         "model_scaler": model_size_scaler,
+#         "MethodTime": time_elapsed,  # do not forget to deduct baseline time from it to remove results calc (acc, MIA, ...)
+#     }
+# )
 
-wandb.finish()
+# wandb.finish()

@@ -46,7 +46,7 @@ class ParameterPerturber:
         self.alpha = None
         self.xmin = None
 
-        print(parameters)
+        # print(parameters)
         self.lower_bound = parameters["lower_bound"]
         self.exponent = parameters["exponent"]
         self.magnitude_diff = parameters["magnitude_diff"]  # unused

@@ -18,4 +18,10 @@ In my own PC, there is a *killed* output when the program running. I think the p
 
 ---
 
-we delete the calculation of Mia (all equals to zero)
+we delete the calculation of Mia & ZRF_score (all equals to zero)
+
+I try the new accuracy calculation:
+
+- decode the pred & label to text
+- feed them to the `roberta_toxicity_classifier` to get the toxicity label (0/1)
+- then calculate the accuracy

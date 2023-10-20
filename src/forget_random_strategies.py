@@ -33,19 +33,21 @@ def get_metric_scores(
     device,
 ):
     loss_acc_dict = evaluate(model, valid_dl, device)
+    torch.cuda.empty_cache()
     retain_acc_dict = evaluate(model, retain_valid_dl, device)
     # zrf = UnLearningScore(model, unlearning_teacher, forget_valid_dl, 128, device)
     zrf = 0
-    d_f = evaluate(model, forget_valid_dl, device)
+    torch.cuda.empty_cache()
+    forget_acc_dict = evaluate(model, forget_valid_dl, device)
     # mia = get_membership_attack_prob(retain_train_dl, forget_train_dl, valid_dl, model)
     mia = 0
 
-    return (loss_acc_dict["Acc"], retain_acc_dict["Acc"], zrf, mia, d_f["Acc"])
+    return (loss_acc_dict["Acc"], retain_acc_dict["Acc"], zrf, mia, forget_acc_dict["Acc"])
 
 
 def baseline(
     model,
-    unlearning_teacher,
+    unlearning_teacher, # it stands for origin model without pretraining
     retain_train_dl,
     retain_valid_dl,
     forget_train_dl,
@@ -55,7 +57,7 @@ def baseline(
     **kwargs,
 ):
     return get_metric_scores(
-        model,
+        unlearning_teacher,
         unlearning_teacher,
         retain_train_dl,
         retain_valid_dl,
@@ -108,9 +110,8 @@ def retrain(
         device,
     )
 
-
 def finetune(
-    model,
+    model,          # finetuned model from (real_toxicity_train.py)
     unlearning_teacher,
     retain_train_dl,
     retain_valid_dl,
@@ -121,9 +122,10 @@ def finetune(
     device,
     **kwargs,
 ):
-    _ = fit_one_cycle(
-        5, model, full_train_dl, valid_dl, lr=0.02, device=device
-    )
+    # in fact we do finetune on the retain dataset. Maybe we should finetune on full dataset?
+    # _ = fit_one_cycle(
+    #     5, model, retain_train_dl, retain_valid_dl, lr=0.02, device=device
+    # )
 
     return get_metric_scores(
         model,
@@ -325,11 +327,6 @@ def pdr_tuning(
     device,
     **kwargs,
 ):
-
-    _ = fit_one_cycle(
-        5, model, full_train_dl, valid_dl, lr=0.02, device=device
-    )
-
     parameters = {
         "lower_bound": 1,
         "exponent": 1,

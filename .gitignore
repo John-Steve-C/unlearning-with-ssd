@@ -11,6 +11,7 @@ wandb/
 environment_guide.md
 environment_setup.sh
 
+src/test.py
 
 # C extensions
 *.so

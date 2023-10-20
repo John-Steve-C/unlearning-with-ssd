@@ -1,14 +1,18 @@
-pip3 install datasets
-pip3 install transformers==4.28.1
+# pip3 install datasets
+# pip3 install transformers==4.28.1
+
+reset_cuda(){
+    sleep 10    
+}
 
 
-export WANDB_RUN_NAME="finetune-distilgpt2-with-real-toxicity-prompts"
+# export WANDB_RUN_NAME="finetune-distilgpt2-with-real-toxicity-prompts"
 torchrun --nproc_per_node=1 real-toxicity-prompts_train.py \
     --model_name_or_path "distilgpt2" \
     --data_path "allenai/real-toxicity-prompts" \
     --bf16 True \
-    --output_dir /workspace/github/models/${WANDB_RUN_NAME} \
-    --num_train_epochs 3 \
+    --output_dir ./models/${model_name_or_path} \
+    --num_train_epochs 1 \
     --per_device_train_batch_size 8 \
     --per_device_eval_batch_size 8 \
     --gradient_accumulation_steps 1 \

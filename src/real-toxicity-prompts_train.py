@@ -67,9 +67,9 @@ def train():
     
     tokenizer.pad_token = tokenizer.eos_token
 
-    train_dataset = load_dataset("allenai/real-toxicity-prompts", split='train')
+    train_dataset = load_dataset("allenai/real-toxicity-prompts", split='train').shuffle(seed=42).select(range(10000))
 
-    breakpoint()
+    # breakpoint()
     if data_args.retain_only:
         print("train with only non toxic continuation")
         train_dataset = train_dataset.filter(lambda example: example["continuation"]["toxicity"] is None or example["continuation"]["toxicity"] <= 0.5)

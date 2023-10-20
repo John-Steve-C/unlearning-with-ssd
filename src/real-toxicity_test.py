@@ -34,9 +34,9 @@ from training_utils import *
 
 import transformers
 from transformers import AutoTokenizer, get_scheduler, AutoModelForCausalLM
-from datasets import load_dataset
+from datasets import load_dataset, concatenate_datasets
 
-from optimum.gptq import GPTQQuantizer, load_quantized_model
+# from optimum.gptq import GPTQQuantizer, load_quantized_model
 
 """
 Get Args
@@ -95,6 +95,7 @@ random.seed(args.seed)
 transformers.set_seed(args.seed)
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
+print(device)
 
 # --------------------------------------- get tokenizer & quantized model
 
@@ -105,10 +106,10 @@ tokenizer = transformers.AutoTokenizer.from_pretrained(
 )
 tokenizer.pad_token = tokenizer.eos_token
 
-quantizer = GPTQQuantizer(bits=4, dataset="c4") # block_name_to_quantize = "model.decoder.layers", model_seqlen = 2048
-model = AutoModelForCausalLM.from_pretrained(args.model_name_or_path, torch_dtype=torch.float16)
-print(model)
-quantized_model = quantizer.quantize_model(model, tokenizer)
+# quantizer = GPTQQuantizer(bits=4, dataset="c4") # block_name_to_quantize = "model.decoder.layers", model_seqlen = 2048
+model = AutoModelForCausalLM.from_pretrained(args.model_name_or_path)
+# print(model)
+# quantized_model = quantizer.quantize_model(model, tokenizer)
 model.to(device)
 
 unlearning_teacher = AutoModelForCausalLM.from_pretrained(args.origin_model)
@@ -131,23 +132,19 @@ def combine_text(example):
     example["text"] = example["prompt"]["text"] + example["continuation"]["text"]
     return example
 
+# need to modify!
+total_size = 100
 
-# trainset = getattr(datasets, args.dataset)(
-#     root=root, download=True, train=True, unlearning=True, img_size=img_size
-# )
-# validset = getattr(datasets, args.dataset)(
-#     root=root, download=True, train=False, unlearning=True, img_size=img_size
-# )
-
-trainset = load_dataset(args.dataset, split='train').select(range(10000))
-validset = load_dataset(args.dataset, split='train').select(range(10000, 12000))
+trainset = load_dataset(args.dataset, split='train').shuffle(seed=42).select(range(2 * total_size))
+# validset = load_dataset(args.dataset, split='train').select(range(10000, 12000))
+validset = trainset
 trainset = trainset.map(combine_text)
 trainset = trainset.map(convert_to_features, batched=True)
 validset = validset.map(combine_text)
 validset = validset.map(convert_to_features, batched=True)
 
-trainset = trainset.remove_columns(["prompt", "text", "filename", "begin", "end", "challenging"])
-validset = validset.remove_columns(["prompt", "text", "filename", "begin", "end", "challenging"])
+trainset = trainset.remove_columns(["text", "filename", "begin", "end", "challenging"])
+validset = validset.remove_columns(["text", "filename", "begin", "end", "challenging"])
 trainset.set_format('torch')
 validset.set_format('torch')
 
@@ -155,35 +152,46 @@ validset.set_format('torch')
 forget_train = trainset.filter(lambda example: example["continuation"]["toxicity"] is not None and example["continuation"]["toxicity"] > 0.5)
 retain_train = trainset.filter(lambda example: example["continuation"]["toxicity"] is None or example["continuation"]["toxicity"] <= 0.5)
 
-# valid on non-toxic data
-forget_valid = validset.filter(lambda example: example["continuation"]["toxicity"] is not None and example["continuation"]["toxicity"] > 0.5)
-retain_valid = validset.filter(lambda example: example["continuation"]["toxicity"] is not None and example["continuation"]["toxicity"] <= 0.5)
+# select forget_perc of toxic data
+forget_train = forget_train.select(range(int(total_size * args.forget_perc)))
+retain_train = retain_train.select(range(int(total_size * (1 - args.forget_perc))))
 
-trainset = trainset.remove_columns(["continuation"])
-validset = validset.remove_columns(["continuation"])
-forget_train = forget_train.remove_columns(["continuation"])
-retain_train = retain_train.remove_columns(["continuation"])
-forget_valid = forget_valid.remove_columns(["continuation"])
-retain_valid = retain_valid.remove_columns(["continuation"])
+print('total dataset size : ', len(trainset))
+print('forget train size : ', len(forget_train))
+print('retain train size : ', len(retain_train))
+
+# valid on non-toxic data
+# forget_valid = validset.filter(lambda example: example["continuation"]["toxicity"] is not None and example["continuation"]["toxicity"] > 0.5)
+# retain_valid = validset.filter(lambda example: example["continuation"]["toxicity"] is not None and example["continuation"]["toxicity"] <= 0.5)
+
+trainset = trainset.remove_columns(["prompt", "continuation"])
+validset = validset.remove_columns(["prompt", "continuation"])
+forget_train = forget_train.remove_columns(["prompt", "continuation"])
+retain_train = retain_train.remove_columns(["prompt", "continuation"])
 
 trainloader = DataLoader(trainset, num_workers=4, batch_size=args.b, shuffle=True)
 validloader = DataLoader(validset, num_workers=4, batch_size=args.b, shuffle=False)
 # forget_train, retain_train = torch.utils.data.random_split(
 #     trainset, [args.forget_perc, 1 - args.forget_perc]
 # )
-forget_train_dl = DataLoader(list(forget_train), batch_size=128)
-retain_train_dl = DataLoader(list(retain_train), batch_size=128, shuffle=True)
+forget_train_dl = DataLoader(list(forget_train), batch_size=args.b)
+retain_train_dl = DataLoader(list(retain_train), batch_size=args.b)
 forget_valid_dl = forget_train_dl
-retain_valid_dl = DataLoader(list(retain_valid), batch_size=128, shuffle=True)
+retain_valid_dl = retain_train_dl
 
 full_train_dl = DataLoader(
     ConcatDataset((retain_train_dl.dataset, forget_train_dl.dataset)),
     batch_size=args.b,
 )
+print('actual total train size : ', len(full_train_dl.dataset))
+
+trainloader = full_train_dl
+validloader = full_train_dl
 
 # --------------------------------------- parameters
 
-model_size_scaler = 1
+# alpha(selection_weighting) is affected by dataset size
+model_size_scaler = 1 # alpha = 10 * scaler?
 
 kwargs = {
     "model": model,
@@ -194,8 +202,8 @@ kwargs = {
     "forget_valid_dl": forget_valid_dl,
     "full_train_dl": full_train_dl,
     "valid_dl": validloader,
-    "dampening_constant": 1,
-    "selection_weighting": 10 * model_size_scaler,
+    "dampening_constant": 1,            # lambda
+    "selection_weighting": 1,           # alpha
     "num_classes": args.classes,
     "dataset_name": args.dataset,
     "device": device,
@@ -213,14 +221,16 @@ pure_model_name = args.origin_model.split("/")[-1]
 import time
 from tqdm import tqdm
 
+torch.cuda.empty_cache()
+
 start = time.time()
-testacc, retainacc, zrf, mia, d_f = getattr(forget_random_strategies, args.method)(     # execution
+totaltacc, retainacc, zrf, mia, forgetacc = getattr(forget_random_strategies, args.method)(     # execution
     **kwargs
 )
 end = time.time()
 time_elapsed = end - start
 
-print(args.method, testacc, retainacc, zrf, mia, d_f)
+print(args.method, ": total_acc = ", totaltacc, ",retain_acc = ", retainacc, ",zrf = ", zrf, ",mia = ", mia, ",forget_acc = ", forgetacc)
 # wandb.log(
 #     {
 #         "TestAcc": testacc,

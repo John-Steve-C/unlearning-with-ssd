@@ -17,13 +17,13 @@ seed=42
 
 forget_perc=0.1 # forgetting propotion
 dataset=allenai/real-toxicity-prompts
-origin_model=distilgpt2   #princeton-nlp/Sheared-LLaMA-1.3B
-batch_size=16
+origin_model=distilgpt2   #princeton-nlp/Sheared-LLaMA-1.3B #
+batch_size=4
 n_classes=2
 
 # TODO: need to modify this!
 # model_name_or_path=./models/
-model_name_or_path=distilgpt2
+model_name_or_path=./models/${origin_model}
 
 # Run the Python script
 # CUDA_VISIBLE_DEVICES=$DEVICE python3 toxic_gen_test.py -model $model -dataset $dataset -classes $n_classes -method baseline -forget_perc $forget_perc -model_path $model_path -seed $seed -b $batch_size

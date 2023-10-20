@@ -4,12 +4,74 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 from training_utils import *
-from transformers import AutoTokenizer
+from transformers import AutoTokenizer, RobertaTokenizer, RobertaForSequenceClassification
 
-tokenizer = AutoTokenizer.from_pretrained("distilgpt2", padding_side="right", use_fast=False)
+orig_tokenizer = AutoTokenizer.from_pretrained("distilgpt2", padding_side="right", use_fast=False)
 
+toxic_cls_tokenizer = RobertaTokenizer.from_pretrained('SkolkovoInstitute/roberta_toxicity_classifier')
+toxic_cls_model = RobertaForSequenceClassification.from_pretrained('SkolkovoInstitute/roberta_toxicity_classifier')
+toxic_cls_model.to('cuda')
+toxic_cls_model.eval()
+
+@torch.no_grad()
+def evaluate(model, val_loader, device):
+    model.eval()
+    # outputs = [validation_step(model, batch, device) for batch in val_loader]
+    
+    # print("start evaluating...")
+    outputs = [my_valid(model, batch, device, i) for i, batch in enumerate(val_loader)]
+    # print("finish evaluating...")
+
+    return validation_epoch_end(model, outputs)
+
+def judge_toxicity(text, device):
+    # load tokenizer and model weights
+    # prepare the input
+    batch = toxic_cls_tokenizer.encode(text, return_tensors='pt')
+    # inference
+    batch = batch.to(device)
+    output = toxic_cls_model(batch)
+
+    return torch.argmax(output.logits, dim=-1)
+
+def get_toxicity_score(preds, labels, device):
+    # slice the text to 512 tokens so that it can be fed into the judge_toxicity function
+    pred_text = [orig_tokenizer.decode(pred).replace('<|endoftext|>', '')[:512] for pred in preds]
+    label_text = [orig_tokenizer.decode(label).replace('<|endoftext|>', '')[:512] for label in labels]
+    # print(pred_text[0])
+    # print(label_text[0])
+    # breakpoint()
+    cnt = 0
+    for pred, label in zip(pred_text, label_text):
+        pred_toxicity = judge_toxicity(pred, device)
+        label_toxicity = judge_toxicity(label, device)
+        # print("pred_toxicity ", pred_toxicity)
+        # print("label_toxicity ", label_toxicity)
+        if pred_toxicity == label_toxicity:
+            cnt += 1
+    return torch.tensor(cnt / len(preds)) * 100
+
+def my_valid(model, batch, device, idx):
+    torch.cuda.empty_cache()
+    # print("now valid : ", idx)
+    input_ids, labels = batch.values()
+    labels = labels.to(device)
+    b = {k: v.to(device) for k, v in batch.items()}     # a dictionary of tensors
+    out = model(**b)
+    loss = out.loss
+
+    _, preds = torch.max(out.logits, dim=-1)
+    preds = preds.to(device)
+    toxic_acc = get_toxicity_score(preds, labels, device)
+
+    return {"Loss": loss.detach(), "Acc": toxic_acc}
+
+#-------------------------------------------------------------------------------------------------------
+
+# it's not correct due to we can't simply compare the logits & labels for text generation
 def accuracy(outputs, labels):
     _, preds = torch.max(outputs, dim=-1)
+    # dim = [1, 512] as embeddings
     return torch.tensor(torch.sum(preds == labels).item() / len(preds)) * 100
 
 
@@ -60,11 +122,11 @@ def epoch_end(model, epoch, result):
     )
 
 
-@torch.no_grad()
-def evaluate(model, val_loader, device):
-    model.eval()
-    outputs = [validation_step(model, batch, device) for batch in val_loader]
-    return validation_epoch_end(model, outputs)
+# @torch.no_grad()
+# def evaluate(model, val_loader, device):
+#     model.eval()
+#     outputs = [validation_step(model, batch, device) for batch in val_loader]
+#     return validation_epoch_end(model, outputs)
 
 
 def get_lr(optimizer):

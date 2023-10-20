@@ -17,3 +17,4 @@ matplotlib
 scipy
 accelerate -U
 wandb
+evaluate
