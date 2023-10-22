@@ -10,11 +10,9 @@ wandb
 datetime
 scikit-learn
 torch
-copy
 tqdm
 transformers
 matplotlib
 scipy
-accelerate -U
-wandb
+accelerate
 evaluate
