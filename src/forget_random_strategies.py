@@ -35,14 +35,15 @@ def get_metric_scores(
     loss_acc_dict = evaluate(model, valid_dl, device)
     torch.cuda.empty_cache()
     retain_acc_dict = evaluate(model, retain_valid_dl, device)
-    # zrf = UnLearningScore(model, unlearning_teacher, forget_valid_dl, 128, device)
-    zrf = 0
+    torch.cuda.empty_cache()
+    zrf = UnLearningScore(model, unlearning_teacher, forget_valid_dl, 4, device)
+    # zrf = 0
     torch.cuda.empty_cache()
     forget_acc_dict = evaluate(model, forget_valid_dl, device)
     # mia = get_membership_attack_prob(retain_train_dl, forget_train_dl, valid_dl, model)
     mia = 0
 
-    return (loss_acc_dict["Acc"], retain_acc_dict["Acc"], zrf, mia, forget_acc_dict["Acc"])
+    return (loss_acc_dict["Acc"], retain_acc_dict["Acc"], forget_acc_dict["Acc"], loss_acc_dict["Toxic_Level"], zrf, mia)
 
 
 def baseline(

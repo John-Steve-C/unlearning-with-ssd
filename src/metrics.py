@@ -27,7 +27,8 @@ def UnLearningScore(tmodel, gold_model, forget_dl, batch_size, device):
 
     model_preds = torch.cat(model_preds, axis=0)
     gold_model_preds = torch.cat(gold_model_preds, axis=0)
-    return 1 - JSDiv(model_preds, gold_model_preds)
+    # return 1 - JSDiv(model_preds, gold_model_preds)
+    return JSDiv(model_preds, gold_model_preds)
 
 
 def entropy(p, dim=-1, keepdim=False):

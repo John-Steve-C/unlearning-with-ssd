@@ -51,7 +51,7 @@ def get_toxicity_score(preds, labels, device):
         if pred_toxicity == label_toxicity:
             cnt += 1
         total_pred_prob += pred_prob
-    return torch.tensor(cnt / len(preds)) * 100, total_pred_prob
+    return torch.tensor(cnt / len(preds)) * 100, total_pred_prob / len(preds)
 
 def my_valid(model, batch, device, idx):
     torch.cuda.empty_cache()
@@ -111,9 +111,7 @@ def validation_epoch_end(model, outputs):
     batch_toxicities = [x["Toxic_Level"] for x in outputs]
     epoch_acc = torch.stack(batch_accs).mean()  # Combine accuracies
     epoch_toxicity = torch.stack(batch_toxicities).mean()
-    #return {"Loss": epoch_loss.item(), "Acc": epoch_acc.item(), "Toxic_Level": epoch_toxicity.item()}
-    # TODO: reuse "Acc" keyword here to avoid more code change, need to be fixed later
-    return {"Loss": epoch_loss.item(), "Acc": epoch_toxicity.item()}
+    return {"Loss": epoch_loss.item(), "Acc": epoch_acc.item(), "Toxic_Level": epoch_toxicity.item()}
 
 
 def epoch_end(model, epoch, result):

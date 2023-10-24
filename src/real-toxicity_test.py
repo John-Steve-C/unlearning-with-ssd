@@ -109,10 +109,12 @@ tokenizer.pad_token = tokenizer.eos_token
 # quantizer = GPTQQuantizer(bits=4, dataset="c4") # block_name_to_quantize = "model.decoder.layers", model_seqlen = 2048
 model = AutoModelForCausalLM.from_pretrained(args.model_name_or_path)
 # print(model)
-# quantized_model = quantizer.quantize_model(model, tokenizer)
+# model = quantizer.quantize_model(model, tokenizer)
 model.to(device)
 
+# or we can call it origin model
 unlearning_teacher = AutoModelForCausalLM.from_pretrained(args.origin_model)
+# unlearning_teacher = quantizer.quantize_model(unlearning_teacher, tokenizer)
 unlearning_teacher.to(device)
 
 #------------------------- data preprocess
@@ -133,7 +135,7 @@ def combine_text(example):
     return example
 
 # need to modify!
-total_size = 100
+total_size = 500
 
 trainset = load_dataset(args.dataset, split='train').shuffle(seed=42).select(range(2 * total_size))
 # validset = load_dataset(args.dataset, split='train').select(range(10000, 12000))
@@ -224,13 +226,13 @@ from tqdm import tqdm
 torch.cuda.empty_cache()
 
 start = time.time()
-totaltacc, retainacc, zrf, mia, forgetacc = getattr(forget_random_strategies, args.method)(     # execution
+totaltacc, retainacc, forgetacc, toxic_level, zrf, mia = getattr(forget_random_strategies, args.method)(     # execution
     **kwargs
 )
 end = time.time()
 time_elapsed = end - start
 
-print(args.method, ": total_acc = ", totaltacc, ",retain_acc = ", retainacc, ",zrf = ", zrf, ",mia = ", mia, ",forget_acc = ", forgetacc)
+print(args.method, ": total_acc = ", totaltacc, ",retain_acc = ", retainacc, ",forget_acc = ", forgetacc, ",toxic_level = ", toxic_level, ",zrf = ", zrf, ",mia = ", mia)
 # wandb.log(
 #     {
 #         "TestAcc": testacc,
