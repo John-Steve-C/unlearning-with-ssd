@@ -31,8 +31,8 @@ def judge_toxicity(text, device):
     # inference
     batch = batch.to(device)
     output = toxic_cls_model(batch)
-
-    return torch.argmax(output.logits, dim=-1)
+    prob = torch.softmax(output.logits, dim=1)[:, 1]
+    return torch.argmax(output.logits, dim=-1), prob
 
 def get_toxicity_score(preds, labels, device):
     # slice the text to 512 tokens so that it can be fed into the judge_toxicity function
@@ -42,14 +42,16 @@ def get_toxicity_score(preds, labels, device):
     # print(label_text[0])
     # breakpoint()
     cnt = 0
+    total_pred_prob = 0
     for pred, label in zip(pred_text, label_text):
-        pred_toxicity = judge_toxicity(pred, device)
-        label_toxicity = judge_toxicity(label, device)
+        pred_toxicity, pred_prob = judge_toxicity(pred, device)
+        label_toxicity, label_prob = judge_toxicity(label, device)
         # print("pred_toxicity ", pred_toxicity)
         # print("label_toxicity ", label_toxicity)
         if pred_toxicity == label_toxicity:
             cnt += 1
-    return torch.tensor(cnt / len(preds)) * 100
+        total_pred_prob += pred_prob
+    return torch.tensor(cnt / len(preds)) * 100, total_pred_prob
 
 def my_valid(model, batch, device, idx):
     torch.cuda.empty_cache()
@@ -62,9 +64,9 @@ def my_valid(model, batch, device, idx):
 
     _, preds = torch.max(out.logits, dim=-1)
     preds = preds.to(device)
-    toxic_acc = get_toxicity_score(preds, labels, device)
+    toxic_acc, toxic_prob = get_toxicity_score(preds, labels, device)
 
-    return {"Loss": loss.detach(), "Acc": toxic_acc}
+    return {"Loss": loss.detach(), "Acc": toxic_acc, "Toxic_Level": toxic_prob}
 
 #-------------------------------------------------------------------------------------------------------
 
@@ -106,8 +108,12 @@ def validation_epoch_end(model, outputs):
     batch_losses = [x["Loss"] for x in outputs]
     epoch_loss = torch.stack(batch_losses).mean()  # Combine losses
     batch_accs = [x["Acc"] for x in outputs]
+    batch_toxicities = [x["Toxic_Level"] for x in outputs]
     epoch_acc = torch.stack(batch_accs).mean()  # Combine accuracies
-    return {"Loss": epoch_loss.item(), "Acc": epoch_acc.item()}
+    epoch_toxicity = torch.stack(batch_toxicities).mean()
+    #return {"Loss": epoch_loss.item(), "Acc": epoch_acc.item(), "Toxic_Level": epoch_toxicity.item()}
+    # TODO: reuse "Acc" keyword here to avoid more code change, need to be fixed later
+    return {"Loss": epoch_loss.item(), "Acc": epoch_toxicity.item()}
 
 
 def epoch_end(model, epoch, result):
