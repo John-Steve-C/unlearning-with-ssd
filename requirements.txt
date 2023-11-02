@@ -9,8 +9,8 @@ tokenizers>=0.13.3
 wandb
 datetime
 scikit-learn
-torch=2.0.0
-torchvision=0.15.1
+torch==2.0.0
+torchvision==0.15.1
 tqdm
 transformers
 matplotlib

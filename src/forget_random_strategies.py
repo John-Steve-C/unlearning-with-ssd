@@ -19,6 +19,7 @@ from unlearn import *
 from metrics import UnLearningScore, get_membership_attack_prob
 from utils import *
 import ssd as ssd
+import myimp as imp
 import conf
 
 
@@ -36,7 +37,8 @@ def get_metric_scores(
     torch.cuda.empty_cache()
     retain_acc_dict = evaluate(model, retain_valid_dl, device)
     torch.cuda.empty_cache()
-    zrf = UnLearningScore(model, unlearning_teacher, forget_valid_dl, 4, device)
+    # batch size need to transfer from main
+    zrf = UnLearningScore(model, unlearning_teacher, forget_valid_dl, 1, device)
     # zrf = 0
     torch.cuda.empty_cache()
     forget_acc_dict = evaluate(model, forget_valid_dl, device)
@@ -349,6 +351,54 @@ def pdr_tuning(
 
     original_importances = pdr.calc_importance(full_train_dl)
     pdr.modify_weight(original_importances, sample_importances)
+    return get_metric_scores(
+        model,
+        unlearning_teacher,
+        retain_train_dl,
+        retain_valid_dl,
+        forget_train_dl,
+        forget_valid_dl,
+        valid_dl,
+        device,
+    )
+
+def imp_pruning(
+    model,
+    unlearning_teacher,
+    retain_train_dl,
+    retain_valid_dl,
+    forget_train_dl,
+    forget_valid_dl,
+    valid_dl,
+    dampening_constant,
+    selection_weighting,
+    full_train_dl,
+    device,
+    **kwargs,
+):
+    parameters = {
+        "lower_bound": 1,
+        "exponent": 1,
+        "magnitude_diff": None,
+        "min_layer": -1,
+        "max_layer": -1,
+        "forget_threshold": 1,
+        "dampening_constant": dampening_constant,
+        "selection_weighting": selection_weighting,
+    }
+
+    # load the trained model
+    optimizer = torch.optim.SGD(model.parameters(), lr=0.1)
+
+    pdr = imp.ParameterPerturber(model, optimizer, device, parameters)
+    model = model.eval()
+
+    forget_importances = pdr.calc_importance(forget_train_dl)
+    retain_importances = pdr.calc_importance(retain_train_dl)
+
+    score = [x / y for x, y in zip(retain_importances, forget_importances)]
+    pdr.modify_neuron(score)
+
     return get_metric_scores(
         model,
         unlearning_teacher,

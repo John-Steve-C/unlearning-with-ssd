@@ -75,6 +75,7 @@ parser.add_argument(
         "amnesiac",
         "FisherForgetting",
         "pdr_tuning",
+        "imp_pruning",
     ],
     help="select unlearning method from choice set",
 )
@@ -108,7 +109,13 @@ tokenizer.pad_token = tokenizer.eos_token
 
 # quantizer = GPTQQuantizer(bits=4, dataset="c4") # block_name_to_quantize = "model.decoder.layers", model_seqlen = 2048
 model = AutoModelForCausalLM.from_pretrained(args.model_name_or_path)
-# print(model)
+print(model)
+# print(model.config)
+print(model.transformer.h[0].attn.c_attn.weight.shape)
+print(model.transformer.h[0].attn.c_proj.weight.shape)
+print(model.transformer.h[0].mlp.c_fc.weight.shape)
+print(model.transformer.h[0].mlp.c_proj.weight.shape)
+breakpoint()
 # model = quantizer.quantize_model(model, tokenizer)
 model.to(device)
 
@@ -232,7 +239,7 @@ totaltacc, retainacc, forgetacc, toxic_level, zrf, mia = getattr(forget_random_s
 end = time.time()
 time_elapsed = end - start
 
-print(args.method, ": total_acc = ", totaltacc, ",retain_acc = ", retainacc, ",forget_acc = ", forgetacc, ",toxic_level = ", toxic_level, ",zrf = ", zrf, ",mia = ", mia)
+print(args.method, ": total_acc = ", totaltacc, ",retain_acc = ", retainacc, ",forget_acc = ", forgetacc, ",toxic_level = ", toxic_level, ",zrf = ", zrf, ",mia = ", mia, ",time = ", time_elapsed)
 # wandb.log(
 #     {
 #         "TestAcc": testacc,
