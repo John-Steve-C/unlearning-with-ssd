@@ -1,10 +1,12 @@
 # pip3 install datasets
 # pip3 install transformers==4.28.1
 
+pip uninstall transformer-engine
 reset_cuda(){
     sleep 10    
 }
 
+model_name_or_path=distilgpt2
 
 # export WANDB_RUN_NAME="finetune-distilgpt2-with-real-toxicity-prompts"
 torchrun --nproc_per_node=1 real-toxicity-prompts_train.py \

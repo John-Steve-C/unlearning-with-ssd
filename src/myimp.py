@@ -98,6 +98,7 @@ class ParameterPerturber:
         # criterion = nn.CrossEntropyLoss()
         self.feature_in = []
         self.feature_out = []
+        breakpoint()
         for batch in dataloader:
             b = {k: v.to(self.device) for k, v in batch.items()}     # a dictionary of tensors
             self.model(**b)
