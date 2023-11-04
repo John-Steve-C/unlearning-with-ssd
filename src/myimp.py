@@ -153,8 +153,7 @@ class ParameterPerturber:
             
             # print(total_cnt_list)
             # print(total_sum)
-            for item in total_cnt_list:
-                item /= total_sum
+            total_cnt_list = [x / total_sum for x in total_cnt_list]
             importance.extend(total_cnt_list)
         print(len(importance))      # stands for the total neuron number
         # print(importance)
