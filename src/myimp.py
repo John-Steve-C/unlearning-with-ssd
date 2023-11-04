@@ -155,7 +155,7 @@ class ParameterPerturber:
             # print(total_sum)
             for item in total_cnt_list:
                 item /= total_sum
-            importance.append(total_cnt_list)
+            importance.extend(total_cnt_list)
         print(len(importance))      # stands for the total neuron number
         # print(importance)
         # breakpoint()
@@ -165,7 +165,7 @@ class ParameterPerturber:
     def modify_neuron(
         self,
         score: list,
-        neuron_number: int = 768,
+        neuron_number_per_layer: int = 768,
         pruning_number: int = 50,
     ) -> None:
         """
@@ -181,11 +181,11 @@ class ParameterPerturber:
         for i in range(pruning_number):
             del_pair = score_pair[i]
             id = del_pair[1]
-            neuron_id = id % 768
-            layer_id = id // 768
-            for i in range(3072):
-                self.model.transformer.h[layer_id].mlp.c_proj.weight[i][neuron_id] = 0
-            self.model.transformer.h[layer_id].mlp.c_proj.weight[neuron_id] = 0
+            neuron_id = id % neuron_number_per_layer
+            layer_id = id // neuron_number_per_layer
+            for j in range(3072):
+                self.model.transformer.h[layer_id].mlp.c_proj.weight[j][neuron_id] = 0
+            self.model.transformer.h[layer_id].mlp.c_proj.bias[neuron_id] = 0
 
         return None
 
