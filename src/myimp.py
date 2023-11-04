@@ -183,9 +183,10 @@ class ParameterPerturber:
             id = del_pair[1]
             neuron_id = id % neuron_number_per_layer
             layer_id = id // neuron_number_per_layer
-            for j in range(3072):
-                self.model.transformer.h[layer_id].mlp.c_proj.weight[j][neuron_id] = 0
-            self.model.transformer.h[layer_id].mlp.c_proj.bias[neuron_id] = 0
+            with torch.no_grad():
+                for j in range(3072):
+                    self.model.transformer.h[layer_id].mlp.c_proj.weight[j][neuron_id].zero_()
+                self.model.transformer.h[layer_id].mlp.c_proj.bias[neuron_id].zero_()
 
         return None
 
