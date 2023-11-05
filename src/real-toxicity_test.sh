@@ -31,10 +31,10 @@ model_name_or_path=./models/${origin_model}
 # CUDA_VISIBLE_DEVICES=$DEVICE python3 toxic_gen_test.py -model $model -dataset $dataset -classes $n_classes -method finetune -forget_perc $forget_perc -model_path $model_path -seed $seed -b $batch_size
 # reset_cuda
 
-# python3 real-toxicity_test.py -origin_model $origin_model -dataset $dataset -classes $n_classes -method baseline -forget_perc $forget_perc -model_name_or_path $model_name_or_path -seed $seed -b $batch_size
-# reset_cuda
-# python3 real-toxicity_test.py -origin_model $origin_model -dataset $dataset -classes $n_classes -method finetune -forget_perc $forget_perc -model_name_or_path $model_name_or_path -seed $seed -b $batch_size
-# reset_cuda
+python3 real-toxicity_test.py -origin_model $origin_model -dataset $dataset -classes $n_classes -method baseline -forget_perc $forget_perc -model_name_or_path $model_name_or_path -seed $seed -b $batch_size
+reset_cuda
+python3 real-toxicity_test.py -origin_model $origin_model -dataset $dataset -classes $n_classes -method finetune -forget_perc $forget_perc -model_name_or_path $model_name_or_path -seed $seed -b $batch_size
+reset_cuda
 # python3 real-toxicity_test.py -origin_model $origin_model -dataset $dataset -classes $n_classes -method pdr_tuning -forget_perc $forget_perc -model_name_or_path $model_name_or_path -seed $seed -b $batch_size
 # reset_cuda
 python3 real-toxicity_test.py -origin_model $origin_model -dataset $dataset -classes $n_classes -method imp_pruning -forget_perc $forget_perc -model_name_or_path $model_name_or_path -seed $seed -b $batch_size
