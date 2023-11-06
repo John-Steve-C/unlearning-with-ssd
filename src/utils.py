@@ -62,7 +62,7 @@ def my_valid(model, batch, device, idx):
     out = model(**b)
     loss = out.loss
 
-    _, preds = torch.max(out.logits, dim=-1)
+    _, preds = torch.max(out.logits, dim=-1)            # max returns (value ,index)!
     preds = preds.to(device)
     toxic_acc, toxic_prob = get_toxicity_score(preds, labels, device)
 

@@ -82,7 +82,7 @@ class ParameterPerturber:
         for (name, module) in self.model.named_modules():
             if neuron in name: #and module.__class__ == transformers.pytorch_utils.Conv1D:
                 # print(name)
-                hooks.append(module.register_forward_hook(hook=hook))
+                self.hooks.append(module.register_forward_hook(hook=hook))
 
         # children = self.model.children()
         # print(children)
