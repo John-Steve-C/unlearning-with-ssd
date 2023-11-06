@@ -346,10 +346,10 @@ def pdr_tuning(
 
     pdr = ssd.ParameterPerturber(model, optimizer, device, parameters)
     model = model.eval()
-
+    
     sample_importances = pdr.calc_importance(forget_train_dl)
-
     original_importances = pdr.calc_importance(full_train_dl)
+    
     pdr.modify_weight(original_importances, sample_importances)
     return get_metric_scores(
         model,
