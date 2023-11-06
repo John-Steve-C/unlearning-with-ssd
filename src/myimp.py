@@ -64,6 +64,7 @@ class ParameterPerturber:
         # self.module_name = []
         self.feature_in = []
         self.feature_out = []
+        self.hooks = []
 
         def hook(module, fea_in, fea_out):
             # print("hooker working")
@@ -81,7 +82,7 @@ class ParameterPerturber:
         for (name, module) in self.model.named_modules():
             if neuron in name: #and module.__class__ == transformers.pytorch_utils.Conv1D:
                 # print(name)
-                module.register_forward_hook(hook=hook)
+                hooks.append(module.register_forward_hook(hook=hook))
 
         # children = self.model.children()
         # print(children)
@@ -169,6 +170,10 @@ class ParameterPerturber:
                 for j in range(3072):
                     self.model.transformer.h[layer_id].mlp.c_proj.weight[j][neuron_id].zero_()
                 self.model.transformer.h[layer_id].mlp.c_proj.bias[neuron_id].zero_()
+
+        # remember to remove hook
+        for hook in self.hooks:
+            hook.remove()
 
         return None
 
