@@ -45,7 +45,7 @@ def get_metric_scores(
     # mia = get_membership_attack_prob(retain_train_dl, forget_train_dl, valid_dl, model)
     mia = 0
 
-    return (loss_acc_dict["Acc"], retain_acc_dict["Acc"], forget_acc_dict["Acc"], loss_acc_dict["Toxic_Level"], zrf, mia)
+    return (loss_acc_dict["Acc"], retain_acc_dict["Acc"], forget_acc_dict["Acc"], torch.exp(retain_acc_dict["Loss"]), torch.exp(forget_acc_dict["Loss"]), loss_acc_dict["Toxic_Level"], zrf, mia)
 
 
 def baseline(
