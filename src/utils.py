@@ -60,13 +60,16 @@ def my_valid(model, batch, device, idx):
     labels = labels.to(device)
     b = {k: v.to(device) for k, v in batch.items()}     # a dictionary of tensors
     out = model(**b)
-    loss = out.loss
+    loss = out.loss     # Negative Log Likelihood Loss
 
     _, preds = torch.max(out.logits, dim=-1)            # max returns (value ,index)!
     preds = preds.to(device)
     toxic_acc, toxic_prob = get_toxicity_score(preds, labels, device)
+    # perplexity = torch.exp(loss)
 
     return {"Loss": loss.detach(), "Acc": toxic_acc, "Toxic_Level": toxic_prob}
+
+# def calculate_perplexity():
 
 #-------------------------------------------------------------------------------------------------------
 

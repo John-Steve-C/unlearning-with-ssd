@@ -170,6 +170,9 @@ class ParameterPerturber:
                 for j in range(3072):
                     self.model.transformer.h[layer_id].mlp.c_proj.weight[j][neuron_id].zero_()
                 self.model.transformer.h[layer_id].mlp.c_proj.bias[neuron_id].zero_()
+                # we need to prevent the gradient of the pruned neuron from being updated
+                self.model.transformer.h[layer_id].mlp.c_proj.weight.requires_grad = False
+                self.model.transformer.h[layer_id].mlp.c_proj.bias.requires_grad = False
 
         # remember to remove hook
         for hook in self.hooks:

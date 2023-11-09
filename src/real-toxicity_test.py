@@ -138,7 +138,7 @@ def convert_to_features(example_batch):
     return encodings
 
 def combine_text(example):
-    example["text"] = example["prompt"]["text"] + example["continuation"]["text"]
+    example["text"] = example["prompt"]["text"] # + example["continuation"]["text"]
     return example
 
 # need to modify!
@@ -233,13 +233,13 @@ from tqdm import tqdm
 torch.cuda.empty_cache()
 
 start = time.time()
-totaltacc, retainacc, forgetacc, toxic_level, zrf, mia = getattr(forget_random_strategies, args.method)(     # execution
+totaltacc, retainacc, forgetacc, retainppl, forgetppl, toxic_level, zrf, mia = getattr(forget_random_strategies, args.method)(     # execution
     **kwargs
 )
 end = time.time()
 time_elapsed = end - start
 
-print(args.method, ": total_acc = ", totaltacc, ",retain_acc = ", retainacc, ",forget_acc = ", forgetacc, ",toxic_level = ", toxic_level, ",zrf = ", zrf, ",mia = ", mia, ",time = ", time_elapsed)
+print(args.method, ": total_acc = ", totaltacc, ",retain_acc = ", retainacc, ",forget_acc = ", forgetacc, ",retain_ppl = ", retainppl, ",forget_ppl = ", forgetppl, ",toxic_level = ", toxic_level, ",zrf = ", zrf, ",mia = ", mia, ",time = ", time_elapsed)
 # wandb.log(
 #     {
 #         "TestAcc": testacc,
