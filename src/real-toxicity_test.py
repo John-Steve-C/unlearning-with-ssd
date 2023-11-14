@@ -115,7 +115,6 @@ print(model.transformer.h[0].attn.c_attn.weight.shape)
 print(model.transformer.h[0].attn.c_proj.weight.shape)
 print(model.transformer.h[0].mlp.c_fc.weight.shape)
 print(model.transformer.h[0].mlp.c_proj.weight.shape)
-breakpoint()
 # model = quantizer.quantize_model(model, tokenizer)
 model.to(device)
 
@@ -142,9 +141,10 @@ def combine_text(example):
     return example
 
 # need to modify!
-total_size = 500
+total_size = 1000
 
 trainset = load_dataset(args.dataset, split='train').shuffle(seed=42).select(range(2 * total_size))
+#trainset = load_dataset(args.dataset, split='train')
 # validset = load_dataset(args.dataset, split='train').select(range(10000, 12000))
 validset = trainset
 trainset = trainset.map(combine_text)
@@ -162,8 +162,8 @@ forget_train = trainset.filter(lambda example: example["continuation"]["toxicity
 retain_train = trainset.filter(lambda example: example["continuation"]["toxicity"] is None or example["continuation"]["toxicity"] <= 0.5)
 
 # select forget_perc of toxic data
-forget_train = forget_train.select(range(int(total_size * args.forget_perc)))
-retain_train = retain_train.select(range(int(total_size * (1 - args.forget_perc))))
+#forget_train = forget_train.select(range(int(total_size * args.forget_perc)))
+#retain_train = retain_train.select(range(int(total_size * (1 - args.forget_perc))))
 
 print('total dataset size : ', len(trainset))
 print('forget train size : ', len(forget_train))
