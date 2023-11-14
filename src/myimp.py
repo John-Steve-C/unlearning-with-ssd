@@ -91,6 +91,11 @@ class ParameterPerturber:
         #         print("child is conv1d")
         #         child.register_forward_hook(hook=hook)
 
+    def clean_data(lists)
+        for data in lists:
+            # data.detach().cpu()
+            data = None
+
     def calc_importance(self, dataloader: DataLoader) -> Dict[str, torch.Tensor]:
         """
         Adapated from: Avalanche: an End-to-End Library for Continual Learning - https://github.com/ContinualAI/avalanche
@@ -130,6 +135,10 @@ class ParameterPerturber:
                         if self.feature_out[i][0][k][j] > 0:
                             total_cnt += 1
                     total_cnt_list[i * 768 + j] += total_cnt                
+
+            clean_data(self.feature_in)
+            clean_data(self.feature_out)
+            torch.cuda.empty_cache()
 
             self.feature_in = []
             self.feature_out = []
