@@ -91,7 +91,7 @@ class ParameterPerturber:
         #         print("child is conv1d")
         #         child.register_forward_hook(hook=hook)
 
-    def clean_data(lists)
+    def clean_data(lists):
         for data in lists:
             # data.detach().cpu()
             data = None
