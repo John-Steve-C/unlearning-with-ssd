@@ -35,7 +35,9 @@ def judge_toxicity(text, device):
     batch = batch.to(device)
     output = toxic_cls_model(batch)
     prob = torch.softmax(output.logits, dim=1)[:, 1]
-    return torch.argmax(output.logits, dim=-1), prob
+    # batch = batch.to('cpu')
+    del batch
+    return torch.argmax(output.logits, dim=-1).detach().cpu(), prob.detach().cpu()
 
 def get_toxicity_score(preds, labels, device):
     # slice the text to 512 tokens so that it can be fed into the judge_toxicity function
@@ -54,23 +56,29 @@ def get_toxicity_score(preds, labels, device):
         if pred_toxicity == label_toxicity:
             cnt += 1
         total_pred_prob += pred_prob
-    return torch.tensor(cnt / len(preds)) * 100, total_pred_prob / len(preds)
+    return torch.tensor(cnt / len(preds)).detach().cpu() * 100, total_pred_prob / len(preds)
 
 def my_valid(model, batch, device, idx):
-    torch.cuda.empty_cache()
+    # torch.cuda.empty_cache()
     # print("now valid : ", idx)
     input_ids, labels = batch.values()
-    labels = labels.to(device)
+    # labels = labels.to(device)
     b = {k: v.to(device) for k, v in batch.items()}     # a dictionary of tensors
     out = model(**b)
     loss = out.loss     # Negative Log Likelihood Loss
 
     _, preds = torch.max(out.logits, dim=-1)            # max returns (value ,index)!
-    preds = preds.to(device)
+    # preds = preds.to(device)
     toxic_acc, toxic_prob = get_toxicity_score(preds, labels, device)
     # perplexity = torch.exp(loss)
 
-    return {"Loss": loss.detach(), "Acc": toxic_acc, "Toxic_Level": toxic_prob}
+    # labels = labels.to('cpu')
+    # preds = preds.to('cpu')
+    # del labels
+    # del preds
+    torch.cuda.empty_cache()
+
+    return {"Loss": loss.detach().cpu(), "Acc": toxic_acc, "Toxic_Level": toxic_prob}
 
 # def calculate_perplexity():
 

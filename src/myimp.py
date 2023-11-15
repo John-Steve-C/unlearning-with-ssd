@@ -34,10 +34,13 @@ import transformers
 # Clean implementation
 ###############################################
 
-def clean_data(lists):
-    for data in lists:
-        # data.detach().cpu()
-        data = None
+def clean_list(lists):
+    # print(type(lists))
+    for item in lists:
+        # print(type(item)) # tuple
+        for data in item:
+            data.detach()
+        del item
 
 class ParameterPerturber:
     def __init__(
@@ -109,7 +112,7 @@ class ParameterPerturber:
         self.feature_in = []
         self.feature_out = []
         total_cnt_list = [0] * (768 * 6)
-        batch_size = dataloader.batch_size
+        # batch_size = dataloader.batch_size
         D_num = len(dataloader) * dataloader.batch_size     # the number of samples
 
         dataloader = tqdm(dataloader)
@@ -133,17 +136,29 @@ class ParameterPerturber:
 
             row = self.feature_out[0][0].shape[0]   # channels=512
             col = self.feature_out[0][0].shape[1]   # neurons=768
+            # print(self.feature_out[0].device)
             # print(row, col)
-            for num in range(batch_size):    # each data
-                for i in range(6):                      # layers
-                    for j in range(768):                # neurons
-                        total_cnt = 0
-                        for k in range(512):            # channels
-                            if self.feature_out[i][num][k][j] > 0:
-                                total_cnt += 1
-                        total_cnt_list[i * 768 + j] += total_cnt                
-            clean_data(self.feature_in)
-            clean_data(self.feature_out)
+            f = torch.stack(self.feature_out, dim=0)    # 6 * batch_size * 512 * 768
+            # print(f.shape)
+            f = f.permute(0, 3, 1, 2)   # 6 * 768 * batch_size * 512
+            for i in range(6):                      # layers
+                for j in range(768):            # neurons
+                    mask = torch.gt(f[i][j], 0)
+                    total_cnt_list[i * 768 + j] += torch.sum(mask)
+
+            # for num in range(batch_size):    # each data
+            #     for i in range(6):                      # layers
+            #         for j in range(768):                # neurons
+            #             total_cnt = 0
+            #             for k in range(512):            # channels
+            #                 if self.feature_out[i][num][k][j] > 0:
+            #                     total_cnt += 1
+            #             total_cnt_list[i * 768 + j] += total_cnt  
+
+            del mask
+            del f
+            clean_list(self.feature_in)
+            clean_list(self.feature_out)
             torch.cuda.empty_cache()
 
             self.feature_in = []
