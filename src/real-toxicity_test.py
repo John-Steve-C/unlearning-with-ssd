@@ -115,6 +115,7 @@ print(model.transformer.h[0].attn.c_attn.weight.shape)
 print(model.transformer.h[0].attn.c_proj.weight.shape)
 print(model.transformer.h[0].mlp.c_fc.weight.shape)
 print(model.transformer.h[0].mlp.c_proj.weight.shape)
+
 # model = quantizer.quantize_model(model, tokenizer)
 model.to(device)
 

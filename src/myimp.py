@@ -34,6 +34,13 @@ import transformers
 # Clean implementation
 ###############################################
 
+def clean_list(lists):
+    # print(type(lists))
+    for item in lists:
+        # print(type(item)) # tuple
+        for data in item:
+            data.detach()
+        del item
 
 class ParameterPerturber:
     def __init__(
@@ -91,11 +98,6 @@ class ParameterPerturber:
         #         print("child is conv1d")
         #         child.register_forward_hook(hook=hook)
 
-    def clean_data(lists)
-        for data in lists:
-            # data.detach().cpu()
-            data = None
-
     def calc_importance(self, dataloader: DataLoader) -> Dict[str, torch.Tensor]:
         """
         Adapated from: Avalanche: an End-to-End Library for Continual Learning - https://github.com/ContinualAI/avalanche
@@ -110,6 +112,11 @@ class ParameterPerturber:
         self.feature_in = []
         self.feature_out = []
         total_cnt_list = [0] * (768 * 6)
+        # batch_size = dataloader.batch_size
+        D_num = len(dataloader) * dataloader.batch_size     # the number of samples
+
+        dataloader = tqdm(dataloader)
+        dataloader.set_description("Calculating importance...")
         for batch in dataloader:
             b = {k: v.to(self.device) for k, v in batch.items()}     # a dictionary of tensors
             self.model(**b)
@@ -121,37 +128,47 @@ class ParameterPerturber:
             # print(type(self.feature_in[0][0]))
             # print(self.feature_in[0][0].shape)
             # print(len(self.feature_out))
+            # print(type(self.feature_out))   # list, length = 6, stands for 6 mlp blocks (layers)
             # print(type(self.feature_out[0]))
             # print(self.feature_out[0].shape)
+            # print(len(dataloader))
             # breakpoint()
 
             row = self.feature_out[0][0].shape[0]   # channels=512
             col = self.feature_out[0][0].shape[1]   # neurons=768
-            print(row, col)
-            for i in range(6):              # layers
-                for j in range(768):        # neurons
-                    total_cnt = 0
-                    for k in range(512):    # channels
-                        if self.feature_out[i][0][k][j] > 0:
-                            total_cnt += 1
-                    total_cnt_list[i * 768 + j] += total_cnt                
+            # print(self.feature_out[0].device)
+            # print(row, col)
+            f = torch.stack(self.feature_out, dim=0)    # 6 * batch_size * 512 * 768
+            # print(f.shape)
+            f = f.permute(0, 3, 1, 2)   # 6 * 768 * batch_size * 512
+            for i in range(6):                      # layers
+                for j in range(768):            # neurons
+                    mask = torch.gt(f[i][j], 0)
+                    total_cnt_list[i * 768 + j] += torch.sum(mask)
 
-            clean_data(self.feature_in)
-            clean_data(self.feature_out)
+            # for num in range(batch_size):    # each data
+            #     for i in range(6):                      # layers
+            #         for j in range(768):                # neurons
+            #             total_cnt = 0
+            #             for k in range(512):            # channels
+            #                 if self.feature_out[i][num][k][j] > 0:
+            #                     total_cnt += 1
+            #             total_cnt_list[i * 768 + j] += total_cnt  
+
+            del mask
+            del f
+            clean_list(self.feature_in)
+            clean_list(self.feature_out)
             torch.cuda.empty_cache()
 
             self.feature_in = []
             self.feature_out = []
 
-
-        # in fact we should consider the batchsize = 1
-        # D_num = the number of samples
-        D_num = len(dataloader)
         # print(len(self.feature_out))
         # breakpoint()
 
         importance = [x / (row * D_num) for x in total_cnt_list]
-        print(len(importance))      # stands for the total neuron number = 768 * 6 = 4608
+        # print(len(importance))      # stands for the total neuron number = 768 * 6 = 4608
         return importance
 
     def modify_neuron(
