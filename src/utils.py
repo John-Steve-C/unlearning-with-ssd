@@ -5,6 +5,7 @@ from torch import nn
 from torch.nn import functional as F
 from training_utils import *
 from transformers import AutoTokenizer, RobertaTokenizer, RobertaForSequenceClassification
+from tqdm import tqdm
 
 orig_tokenizer = AutoTokenizer.from_pretrained("distilgpt2", padding_side="right", use_fast=False)
 
@@ -19,6 +20,8 @@ def evaluate(model, val_loader, device):
     # outputs = [validation_step(model, batch, device) for batch in val_loader]
     
     # print("start evaluating...")
+    val_loader = tqdm(val_loader)
+    val_loader.set_description("Evaluating...")
     outputs = [my_valid(model, batch, device, i) for i, batch in enumerate(val_loader)]
     # print("finish evaluating...")
 
