@@ -80,7 +80,7 @@ parser.add_argument(
     help="select unlearning method from choice set",
 )
 parser.add_argument(
-    "-forget_perc", type=float, required=True, help="Percentage of trainset to forget"
+    "-forget_perc", type=float, default=0.0, required=True, help="Percentage of trainset to forget"
 )
 parser.add_argument(
     "-epochs", type=int, default=1, help="number of epochs of unlearning method to use"
@@ -116,7 +116,6 @@ print(model.transformer.h[0].attn.c_attn.weight.shape)
 print(model.transformer.h[0].attn.c_proj.weight.shape)
 print(model.transformer.h[0].mlp.c_fc.weight.shape)
 print(model.transformer.h[0].mlp.c_proj.weight.shape)
-
 # model = quantizer.quantize_model(model, tokenizer)
 model.to(device)
 
@@ -148,6 +147,9 @@ def combine_text(example):
 #trainset = load_dataset(args.dataset, split='train').shuffle(seed=42).select(range(2 * total_size))
 trainset = load_dataset(args.dataset, split='train')
 # validset = load_dataset(args.dataset, split='train').select(range(10000, 12000))
+
+trainset = load_dataset(args.dataset, split='train')
+
 validset = trainset
 trainset = trainset.map(combine_text)
 trainset = trainset.map(convert_to_features, batched=True)
@@ -243,6 +245,9 @@ end = time.time()
 time_elapsed = end - start
 
 print(args.method, ": total_acc = ", totaltacc, ",retain_acc = ", retainacc, ",forget_acc = ", forgetacc, ",retain_ppl = ", retainppl, ",forget_ppl = ", forgetppl, ",toxic_level = ", toxic_level, ",zrf = ", zrf, ",mia = ", mia, ",time = ", time_elapsed)
+
+print(f"{retainppl} {forgetppl} {toxic_level}")
+
 # wandb.log(
 #     {
 #         "TestAcc": testacc,

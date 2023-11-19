@@ -39,7 +39,6 @@ reset_cuda
 # CUDA_VISIBLE_DEVICES=$DEVICE python3 real-toxicity_test.py -origin_model $origin_model -dataset $dataset -classes $n_classes -method pdr_tuning -forget_perc $forget_perc -model_name_or_path $model_name_or_path -seed $seed -b $batch_size
 # reset_cuda
 CUDA_VISIBLE_DEVICES=$DEVICE python3 real-toxicity_test.py -origin_model $origin_model -dataset $dataset -classes $n_classes -method imp_pruning -forget_perc $forget_perc -model_name_or_path $model_name_or_path -seed $seed -b $batch_size
-
 reset_cuda
 #CUDA_VISIBLE_DEVICES=$DEVICE python3 real-toxicity_test.py -origin_model $origin_model -dataset $dataset -classes $n_classes -method imp_pruning -forget_perc $forget_perc -model_name_or_path $model_name_or_path -seed $seed -b $batch_size
 
