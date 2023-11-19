@@ -42,7 +42,7 @@ from datasets import load_dataset, concatenate_datasets
 Get Args
 """
 parser = argparse.ArgumentParser()
-parser.add_argument("-origin_model", type=str, required=True, help="origin model without training")
+parser.add_argument("-origin_model", type=str, default="distilgpt2", required=False, help="origin model without training")
 parser.add_argument(
     "-model_name_or_path",
     type=str,
@@ -57,7 +57,7 @@ parser.add_argument(
     choices=["skg/toxigen-data", "allenai/real-toxicity-prompts"],
     help="dataset to train on",
 )
-parser.add_argument("-classes", type=int, required=True, help="number of classes")
+parser.add_argument("-classes", type=int, default=2, required=False, help="number of classes")
 # parser.add_argument("-gpu", action="store_true", default=False, help="use gpu or not")
 parser.add_argument("-b", type=int, default=128, help="batch size for dataloader")
 parser.add_argument("-warm", type=int, default=1, help="warm up training phase")
@@ -80,12 +80,13 @@ parser.add_argument(
     help="select unlearning method from choice set",
 )
 parser.add_argument(
-    "-forget_perc", type=float, required=True, help="Percentage of trainset to forget"
+    "-forget_perc", type=float, default=0.0, required=False, help="Percentage of trainset to forget"
 )
 parser.add_argument(
     "-epochs", type=int, default=1, help="number of epochs of unlearning method to use"
 )
 parser.add_argument("-seed", type=int, default=0, help="seed for runs")
+parser.add_argument("-pruning_number", type=int, default=50, help="num of weights to prune")
 args = parser.parse_args()
 
 # ---------------------------------------- Set seeds
@@ -115,7 +116,6 @@ print(model.transformer.h[0].attn.c_attn.weight.shape)
 print(model.transformer.h[0].attn.c_proj.weight.shape)
 print(model.transformer.h[0].mlp.c_fc.weight.shape)
 print(model.transformer.h[0].mlp.c_proj.weight.shape)
-# breakpoint()
 # model = quantizer.quantize_model(model, tokenizer)
 model.to(device)
 
@@ -142,10 +142,14 @@ def combine_text(example):
     return example
 
 # need to modify!
-total_size = 500
+#total_size = 1000
 
-trainset = load_dataset(args.dataset, split='train').shuffle(seed=42).select(range(2 * total_size))
+#trainset = load_dataset(args.dataset, split='train').shuffle(seed=42).select(range(2 * total_size))
+trainset = load_dataset(args.dataset, split='train')
 # validset = load_dataset(args.dataset, split='train').select(range(10000, 12000))
+
+trainset = load_dataset(args.dataset, split='train')
+
 validset = trainset
 trainset = trainset.map(combine_text)
 trainset = trainset.map(convert_to_features, batched=True)
@@ -162,8 +166,8 @@ forget_train = trainset.filter(lambda example: example["continuation"]["toxicity
 retain_train = trainset.filter(lambda example: example["continuation"]["toxicity"] is None or example["continuation"]["toxicity"] <= 0.5)
 
 # select forget_perc of toxic data
-forget_train = forget_train.select(range(int(total_size * args.forget_perc)))
-retain_train = retain_train.select(range(int(total_size * (1 - args.forget_perc))))
+#forget_train = forget_train.select(range(int(total_size * args.forget_perc)))
+#retain_train = retain_train.select(range(int(total_size * (1 - args.forget_perc))))
 
 print('total dataset size : ', len(trainset))
 print('forget train size : ', len(forget_train))
@@ -217,6 +221,7 @@ kwargs = {
     "dataset_name": args.dataset,
     "device": device,
     "model_name": args.origin_model,
+    "pruning_number": args.pruning_number,
 }
 
 pure_model_name = args.origin_model.split("/")[-1]
@@ -232,6 +237,12 @@ from tqdm import tqdm
 
 torch.cuda.empty_cache()
 
+def print_kwargs(**kwargs):
+    for key, value in kwargs.items():
+        print(f"{key}: {value}")
+print("===== args =========")
+print_kwargs(**kwargs)
+
 start = time.time()
 totaltacc, retainacc, forgetacc, retainppl, forgetppl, toxic_level, zrf, mia = getattr(forget_random_strategies, args.method)(     # execution
     **kwargs
@@ -240,6 +251,9 @@ end = time.time()
 time_elapsed = end - start
 
 print(args.method, ": total_acc = ", totaltacc, ",retain_acc = ", retainacc, ",forget_acc = ", forgetacc, ",retain_ppl = ", retainppl, ",forget_ppl = ", forgetppl, ",toxic_level = ", toxic_level, ",zrf = ", zrf, ",mia = ", mia, ",time = ", time_elapsed)
+
+print(f"{retainppl} {forgetppl} {toxic_level}")
+
 # wandb.log(
 #     {
 #         "TestAcc": testacc,
