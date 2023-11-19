@@ -42,7 +42,7 @@ from datasets import load_dataset, concatenate_datasets
 Get Args
 """
 parser = argparse.ArgumentParser()
-parser.add_argument("-origin_model", type=str, default="distilgpt2", required=True, help="origin model without training")
+parser.add_argument("-origin_model", type=str, default="distilgpt2", required=False, help="origin model without training")
 parser.add_argument(
     "-model_name_or_path",
     type=str,
@@ -57,7 +57,7 @@ parser.add_argument(
     choices=["skg/toxigen-data", "allenai/real-toxicity-prompts"],
     help="dataset to train on",
 )
-parser.add_argument("-classes", type=int, default=2, required=True, help="number of classes")
+parser.add_argument("-classes", type=int, default=2, required=False, help="number of classes")
 # parser.add_argument("-gpu", action="store_true", default=False, help="use gpu or not")
 parser.add_argument("-b", type=int, default=128, help="batch size for dataloader")
 parser.add_argument("-warm", type=int, default=1, help="warm up training phase")
@@ -80,7 +80,7 @@ parser.add_argument(
     help="select unlearning method from choice set",
 )
 parser.add_argument(
-    "-forget_perc", type=float, default=0.0, required=True, help="Percentage of trainset to forget"
+    "-forget_perc", type=float, default=0.0, required=False, help="Percentage of trainset to forget"
 )
 parser.add_argument(
     "-epochs", type=int, default=1, help="number of epochs of unlearning method to use"
@@ -236,6 +236,12 @@ import time
 from tqdm import tqdm
 
 torch.cuda.empty_cache()
+
+def print_kwargs(**kwargs):
+    for key, value in kwargs.items():
+        print(f"{key}: {value}")
+print("===== args =========")
+print_kwargs(**kwargs)
 
 start = time.time()
 totaltacc, retainacc, forgetacc, retainppl, forgetppl, toxic_level, zrf, mia = getattr(forget_random_strategies, args.method)(     # execution
