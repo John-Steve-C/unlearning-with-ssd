@@ -1,8 +1,7 @@
-
 DEVICE=0
 dataset=allenai/real-toxicity-prompts
 batch_size=128
-pruning_number=50
+pruning_number=$1
 seed=42
 model_name_or_path=${PWD}/models/distilgpt2_finetune
 
