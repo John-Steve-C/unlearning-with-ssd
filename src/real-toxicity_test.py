@@ -86,6 +86,7 @@ parser.add_argument(
     "-epochs", type=int, default=1, help="number of epochs of unlearning method to use"
 )
 parser.add_argument("-seed", type=int, default=0, help="seed for runs")
+parser.add_argument("-pruning_number", type=int, default=50, help="num of weights to prune")
 args = parser.parse_args()
 
 # ---------------------------------------- Set seeds
@@ -142,10 +143,10 @@ def combine_text(example):
     return example
 
 # need to modify!
-total_size = 1000
+#total_size = 1000
 
-trainset = load_dataset(args.dataset, split='train').shuffle(seed=42).select(range(2 * total_size))
-#trainset = load_dataset(args.dataset, split='train')
+#trainset = load_dataset(args.dataset, split='train').shuffle(seed=42).select(range(2 * total_size))
+trainset = load_dataset(args.dataset, split='train')
 # validset = load_dataset(args.dataset, split='train').select(range(10000, 12000))
 validset = trainset
 trainset = trainset.map(combine_text)
@@ -218,6 +219,7 @@ kwargs = {
     "dataset_name": args.dataset,
     "device": device,
     "model_name": args.origin_model,
+    "pruning_number": args.pruning_number,
 }
 
 pure_model_name = args.origin_model.split("/")[-1]
