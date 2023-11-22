@@ -147,9 +147,6 @@ def combine_text(example):
 #trainset = load_dataset(args.dataset, split='train').shuffle(seed=42).select(range(2 * total_size))
 trainset = load_dataset(args.dataset, split='train')
 # validset = load_dataset(args.dataset, split='train').select(range(10000, 12000))
-
-trainset = load_dataset(args.dataset, split='train')
-
 validset = trainset
 trainset = trainset.map(combine_text)
 trainset = trainset.map(convert_to_features, batched=True)

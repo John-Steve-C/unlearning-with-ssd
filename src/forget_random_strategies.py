@@ -398,7 +398,7 @@ def imp_pruning(
     retain_importances = pdr.calc_importance(retain_train_dl)
 
     score = [x / (y + 0.01) for x, y in zip(forget_importances, retain_importances)]
-    pdr.modify_neuron(score)
+    pdr.modify_neuron(score, pruning_number=kwargs["pruning_number"])
 
     return get_metric_scores(
         model,
