@@ -98,7 +98,7 @@ class ParameterPerturber:
         #         print("child is conv1d")
         #         child.register_forward_hook(hook=hook)
 
-    def calc_importance(self, dataloader: DataLoader) -> Dict[str, torch.Tensor]:
+    def calc_importance(self, dataloader: DataLoader, imp_type: str) -> Dict[str, torch.Tensor]:
         """
         Adapated from: Avalanche: an End-to-End Library for Continual Learning - https://github.com/ContinualAI/avalanche
         Calculate per-parameter, importance
@@ -143,8 +143,14 @@ class ParameterPerturber:
             f = f.permute(0, 3, 1, 2)   # 6 * 768 * batch_size * 512
             for i in range(6):                      # layers
                 for j in range(768):            # neurons
-                    mask = torch.gt(f[i][j], 0)
-                    total_cnt_list[i * 768 + j] += torch.sum(mask)
+                    if imp_type == 'freq':
+                        total_cnt_list[i * 768 + j] += torch.sum(torch.gt(f[i][j], 0))
+                    elif imp_type == 'abs':
+                        total_cnt_list[i * 768 + j] += torch.sum(torch.abs(f[i][j]))
+                    elif imp_type == 'rms':
+                        total_cnt_list[i * 768 + j] += torch.sum(torch.square(f[i][j]))
+                    else:   # imp_type == "std"
+                        total_cnt_list[i * 768 + j] += torch.sum(torch.square(f[i][j] - torch.mean(f[i][j])))
 
             # for num in range(batch_size):    # each data
             #     for i in range(6):                      # layers
@@ -167,7 +173,10 @@ class ParameterPerturber:
         # print(len(self.feature_out))
         # breakpoint()
 
-        importance = [x / (row * D_num) for x in total_cnt_list]
+        if imp_type == "freq" or imp_type == "abs":
+            importance = [x / (row * D_num) for x in total_cnt_list]
+        else:
+            importance = [torch.sqrt(x / (row * D_num)) for x in total_cnt_list]
         # print(len(importance))      # stands for the total neuron number = 768 * 6 = 4608
         return importance
 
@@ -197,8 +206,8 @@ class ParameterPerturber:
                     self.model.transformer.h[layer_id].mlp.c_proj.weight[j][neuron_id].zero_()
                 self.model.transformer.h[layer_id].mlp.c_proj.bias[neuron_id].zero_()
                 # we need to prevent the gradient of the pruned neuron from being updated
-                self.model.transformer.h[layer_id].mlp.c_proj.weight.requires_grad = False
-                self.model.transformer.h[layer_id].mlp.c_proj.bias.requires_grad = False
+                # self.model.transformer.h[layer_id].mlp.c_proj.weight.requires_grad = False
+                # self.model.transformer.h[layer_id].mlp.c_proj.bias.requires_grad = False
 
         # remember to remove hook
         for hook in self.hooks:
@@ -206,5 +215,33 @@ class ParameterPerturber:
 
         return None
 
+   
+    # TODO: still need to modify
+    # we can't directly set a neuron's 'requires_grad' to False because it's not a leaf variable
+    def freeze_neuron(
+        self,
+        score: list,
+        neuron_number_per_layer: int = 768,
+        pruning_number: int = 50,
+    ) -> None:
+        score_pair = [(s, id) for id, s in enumerate(score)]
+        score_pair.sort(key=lambda x: x[0], reverse=True)   # true means descending
 
-###############################################
+        # freeze less important neurons in forget set
+        for i in range(pruning_number, len(score_pair)):
+            del_pair = score_pair[i]
+            id = del_pair[1]
+            neuron_id = id % neuron_number_per_layer
+            layer_id = id // neuron_number_per_layer
+            with torch.no_grad():
+                for j in range(3072):
+                    self.model.transformer.h[layer_id].mlp.c_proj.weight[j][neuron_id].zero_()
+                # we need to prevent the gradient of the pruned neuron from being updated
+                self.model.transformer.h[layer_id].mlp.c_proj.weight.requires_grad = False
+                self.model.transformer.h[layer_id].mlp.c_proj.bias[neuron_id].requires_grad = False
+
+        # remember to remove hook
+        for hook in self.hooks:
+            hook.remove()
+
+        return None

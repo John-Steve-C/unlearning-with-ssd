@@ -394,8 +394,8 @@ def imp_pruning(
     pdr = imp.ParameterPerturber(model, optimizer, device, parameters)
     model = model.eval()
 
-    forget_importances = pdr.calc_importance(forget_train_dl)
-    retain_importances = pdr.calc_importance(retain_train_dl)
+    forget_importances = pdr.calc_importance(forget_train_dl, 'freq')
+    retain_importances = pdr.calc_importance(retain_train_dl, 'freq')
 
     score = [x / (y + 0.01) for x, y in zip(forget_importances, retain_importances)]
     pdr.modify_neuron(score, pruning_number=kwargs["pruning_number"])
