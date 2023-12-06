@@ -161,7 +161,7 @@ class ParameterPerturber:
             #                     total_cnt += 1
             #             total_cnt_list[i * 768 + j] += total_cnt  
 
-            del mask
+            # del mask
             del f
             clean_list(self.feature_in)
             clean_list(self.feature_out)
