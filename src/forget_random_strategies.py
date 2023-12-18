@@ -394,9 +394,10 @@ def imp_pruning(
     pdr = imp.ParameterPerturber(model, optimizer, device, parameters)
     model = model.eval()
 
+    print(kwargs)
     with torch.no_grad():
-        forget_importances = pdr.calc_importance(forget_train_dl, 'abs')
-        retain_importances = pdr.calc_importance(retain_train_dl, 'abs')
+        forget_importances = pdr.calc_importance(forget_train_dl, kwargs["forget_type"])
+        retain_importances = pdr.calc_importance(retain_train_dl, kwargs["forget_type"])
 
     score = [x / (y + 0.01) for x, y in zip(forget_importances, retain_importances)]
     pdr.modify_neuron(score, pruning_percent=kwargs["pruning_percent"])

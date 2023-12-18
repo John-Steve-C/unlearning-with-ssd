@@ -82,6 +82,9 @@ parser.add_argument(
     "-forget_perc", type=float, required=True, help="Percentage of trainset to forget"
 )
 parser.add_argument(
+    "-forget_type", type=float, required=True, help="forget type: freq/abs/rms/std"
+)
+parser.add_argument(
     "-epochs", type=int, default=1, help="number of epochs of unlearning method to use"
 )
 parser.add_argument("-seed", type=int, default=0, help="seed for runs")

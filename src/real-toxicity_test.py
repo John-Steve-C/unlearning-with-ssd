@@ -58,7 +58,7 @@ parser.add_argument(
     help="dataset to train on",
 )
 parser.add_argument("-classes", type=int, default=2, required=False, help="number of classes")
-# parser.add_argument("-gpu", action="store_true", default=False, help="use gpu or not")
+parser.add_argument("-use_sample", action="store_true", default=False, help="use a subset of training set for dev")
 parser.add_argument("-b", type=int, default=128, help="batch size for dataloader")
 parser.add_argument("-warm", type=int, default=1, help="warm up training phase")
 parser.add_argument("-lr", type=float, default=0.1, help="initial learning rate")
@@ -87,6 +87,10 @@ parser.add_argument(
 )
 parser.add_argument("-seed", type=int, default=0, help="seed for runs")
 parser.add_argument("-pruning_percent", type=float, default=0.5, help="percentage of weights to prune")
+parser.add_argument(
+    "-forget_type", type=str, default="freq", help="forget type: freq/abs/rms/std"
+)
+
 args = parser.parse_args()
 
 # ---------------------------------------- Set seeds
@@ -145,7 +149,10 @@ def combine_text(example):
 #total_size = 1000
 
 #trainset = load_dataset(args.dataset, split='train').shuffle(seed=42).select(range(2 * total_size))
-trainset = load_dataset(args.dataset, split='train').select(range(2000))
+if args.use_sample:
+    trainset = load_dataset(args.dataset, split='train').select(range(2000))
+else:
+    trainset = load_dataset(args.dataset, split='train')
 # validset = load_dataset(args.dataset, split='train').select(range(10000, 12000))
 validset = trainset
 trainset = trainset.map(combine_text)
@@ -219,6 +226,7 @@ kwargs = {
     "device": device,
     "model_name": args.origin_model,
     "pruning_percent": args.pruning_percent,
+    "forget_type": args.forget_type
 }
 
 pure_model_name = args.origin_model.split("/")[-1]
