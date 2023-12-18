@@ -51,6 +51,7 @@ class ParameterPerturber:
         opt,
         device="cuda" if torch.cuda.is_available() else "cpu",
         parameters=None,
+        neuron_name: str = "mlp.c_proj",
     ):
         self.model = model
         self.opt = opt
@@ -84,14 +85,19 @@ class ParameterPerturber:
             # print(fea_out.shape)
             return None
 
-        neuron = "mlp.c_proj"
+        self.neuron_name = neuron_name
         # neuron = "mlp.dropout"
         # neuron = "attn.c_proj"
-        # neuron = "ln_f"
+        layers = 0
         for (name, module) in self.model.named_modules():
-            if neuron in name: #and module.__class__ == transformers.pytorch_utils.Conv1D:
-                # print(name)
+            if neuron_name in name: #and module.__class__ == transformers.pytorch_utils.Conv1D:
+                layers += 1
+                self.weight_shape = module.weight.shape
                 self.hooks.append(module.register_forward_hook(hook=hook))
+
+        self.layers = layers
+        self.neuron_number_per_layer = self.weight_shape[1]
+        self.total_neuron_number = layers * self.weight_shape[1]
 
         # children = self.model.children()
         # print(children)
@@ -113,7 +119,7 @@ class ParameterPerturber:
         # criterion = nn.CrossEntropyLoss()
         self.feature_in = []
         self.feature_out = []
-        total_cnt_list = [0] * (768 * 6)
+        total_cnt_list = [0] * self.total_neuron_number
         # batch_size = dataloader.batch_size
         D_num = len(dataloader) * dataloader.batch_size     # the number of samples
 
@@ -137,22 +143,22 @@ class ParameterPerturber:
             # breakpoint()
 
             row = self.feature_out[0][0].shape[0]   # channels=512
-            col = self.feature_out[0][0].shape[1]   # neurons=768
+            col = self.feature_out[0][0].shape[1]   # neurons=768=self.neurons_number_per_layer
             # print(self.feature_out[0].device)
             # print(row, col)
             f = torch.stack(self.feature_out, dim=0)    # 6 * batch_size * 512 * 768
             # print(f.shape)
             f = f.permute(0, 3, 1, 2)   # 6 * 768 * batch_size * 512
-            for i in range(6):                      # layers
-                for j in range(768):            # neurons
+            for i in range(self.layers):                      # layers
+                for j in range(col):            # neurons
                     if imp_type == 'freq':
-                        total_cnt_list[i * 768 + j] += torch.sum(torch.gt(f[i][j], 0))
+                        total_cnt_list[i * col + j] += torch.sum(torch.gt(f[i][j], 0))
                     elif imp_type == 'abs':
-                        total_cnt_list[i * 768 + j] += torch.sum(torch.abs(f[i][j]))
+                        total_cnt_list[i * col + j] += torch.sum(torch.abs(f[i][j]))
                     elif imp_type == 'rms':
-                        total_cnt_list[i * 768 + j] += torch.sum(torch.square(f[i][j]))
+                        total_cnt_list[i * col + j] += torch.sum(torch.square(f[i][j]))
                     else:   # imp_type == "std"
-                        total_cnt_list[i * 768 + j] += torch.sum(torch.square(f[i][j] - torch.mean(f[i][j])))
+                        total_cnt_list[i * col + j] += torch.sum(torch.square(f[i][j] - torch.mean(f[i][j])))
 
             # for num in range(batch_size):    # each data
             #     for i in range(6):                      # layers
@@ -186,9 +192,7 @@ class ParameterPerturber:
     def modify_neuron(
         self,
         score: list,
-        pruning_percent,
-        layers: int = 6,
-        neuron_number_per_layer: int = 768,
+        pruning_percent: float,
     ) -> None:
         """
         change neuron weights by score
@@ -197,7 +201,7 @@ class ParameterPerturber:
         None
 
         """
-        pruning_number = int(neuron_number_per_layer * layers * pruning_percent)
+        pruning_number = int(self.total_neuron_number * pruning_percent)
 
         score_pair = [(s, id) for id, s in enumerate(score)]
         score_pair.sort(key=lambda x: x[0], reverse=True)   # true means descending
@@ -205,8 +209,8 @@ class ParameterPerturber:
         for i in range(pruning_number):
             del_pair = score_pair[i]
             id = del_pair[1]
-            neuron_id = id % neuron_number_per_layer
-            layer_id = id // neuron_number_per_layer
+            neuron_id = id % self.neuron_number_per_layer
+            layer_id = id // self.neuron_number_per_layer
             with torch.no_grad():
                 for j in range(3072):
                     self.model.transformer.h[layer_id].mlp.c_proj.weight[j][neuron_id].zero_()
