@@ -86,7 +86,7 @@ parser.add_argument(
     "-epochs", type=int, default=1, help="number of epochs of unlearning method to use"
 )
 parser.add_argument("-seed", type=int, default=0, help="seed for runs")
-parser.add_argument("-pruning_number", type=int, default=50, help="num of weights to prune")
+parser.add_argument("-pruning_percent", type=float, default=0.5, help="percentage of weights to prune")
 args = parser.parse_args()
 
 # ---------------------------------------- Set seeds
@@ -110,7 +110,7 @@ tokenizer.pad_token = tokenizer.eos_token
 
 # quantizer = GPTQQuantizer(bits=4, dataset="c4") # block_name_to_quantize = "model.decoder.layers", model_seqlen = 2048
 model = AutoModelForCausalLM.from_pretrained(args.model_name_or_path)
-print(model)
+# print(model)
 # print(model.config)
 print(model.transformer.h[0].attn.c_attn.weight.shape)
 print(model.transformer.h[0].attn.c_proj.weight.shape)
@@ -145,7 +145,7 @@ def combine_text(example):
 #total_size = 1000
 
 #trainset = load_dataset(args.dataset, split='train').shuffle(seed=42).select(range(2 * total_size))
-trainset = load_dataset(args.dataset, split='train')
+trainset = load_dataset(args.dataset, split='train').select(range(2000))
 # validset = load_dataset(args.dataset, split='train').select(range(10000, 12000))
 validset = trainset
 trainset = trainset.map(combine_text)
@@ -218,7 +218,7 @@ kwargs = {
     "dataset_name": args.dataset,
     "device": device,
     "model_name": args.origin_model,
-    "pruning_number": args.pruning_number,
+    "pruning_percent": args.pruning_percent,
 }
 
 pure_model_name = args.origin_model.split("/")[-1]

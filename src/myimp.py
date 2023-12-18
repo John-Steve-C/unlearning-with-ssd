@@ -30,6 +30,8 @@ from typing import Dict, List
 import transformers
 # from transformers import GPT2LMHeadModel
 
+import gc
+
 ###############################################
 # Clean implementation
 ###############################################
@@ -165,6 +167,7 @@ class ParameterPerturber:
             del f
             clean_list(self.feature_in)
             clean_list(self.feature_out)
+            gc.collect()
             torch.cuda.empty_cache()
 
             self.feature_in = []
@@ -183,8 +186,9 @@ class ParameterPerturber:
     def modify_neuron(
         self,
         score: list,
+        pruning_percent,
+        layers: int = 6,
         neuron_number_per_layer: int = 768,
-        pruning_number: int = 50,
     ) -> None:
         """
         change neuron weights by score
@@ -193,6 +197,8 @@ class ParameterPerturber:
         None
 
         """
+        pruning_number = int(neuron_number_per_layer * layers * pruning_percent)
+
         score_pair = [(s, id) for id, s in enumerate(score)]
         score_pair.sort(key=lambda x: x[0], reverse=True)   # true means descending
 
