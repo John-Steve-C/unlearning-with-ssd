@@ -75,6 +75,7 @@ class ParameterPerturber:
         self.feature_in = []
         self.feature_out = []
         self.hooks = []
+        self.module_list = []
 
         def hook(module, fea_in, fea_out):
             # print("hooker working")
@@ -93,11 +94,16 @@ class ParameterPerturber:
             if neuron_name in name: #and module.__class__ == transformers.pytorch_utils.Conv1D:
                 layers += 1
                 self.weight_shape = module.weight.shape
+                # print(module)
+                self.module_list.append(module)
                 self.hooks.append(module.register_forward_hook(hook=hook))
 
         self.layers = layers
         self.neuron_number_per_layer = self.weight_shape[1]
         self.total_neuron_number = layers * self.weight_shape[1]
+
+        # print("layers: ", layers)
+        # print("weight shape: ", self.weight_shape)
 
         # children = self.model.children()
         # print(children)
@@ -212,9 +218,13 @@ class ParameterPerturber:
             neuron_id = id % self.neuron_number_per_layer
             layer_id = id // self.neuron_number_per_layer
             with torch.no_grad():
-                for j in range(3072):
-                    self.model.transformer.h[layer_id].mlp.c_proj.weight[j][neuron_id].zero_()
-                self.model.transformer.h[layer_id].mlp.c_proj.bias[neuron_id].zero_()
+                # for j in range(self.weight_shape[0]):
+                #     self.model.transformer.h[layer_id].mlp.c_proj.weight[j][neuron_id].zero_()
+                # self.model.transformer.h[layer_id].mlp.c_proj.bias[neuron_id].zero_()
+                for j in range(self.weight_shape[0]):
+                    self.module_list[layer_id].weight[j][neuron_id].zero_()
+                self.module_list[layer_id].bias[neuron_id].zero_()
+                
                 # we need to prevent the gradient of the pruned neuron from being updated
                 # self.model.transformer.h[layer_id].mlp.c_proj.weight.requires_grad = False
                 # self.model.transformer.h[layer_id].mlp.c_proj.bias.requires_grad = False
@@ -228,30 +238,3 @@ class ParameterPerturber:
    
     # TODO: still need to modify
     # we can't directly set a neuron's 'requires_grad' to False because it's not a leaf variable
-    def freeze_neuron(
-        self,
-        score: list,
-        neuron_number_per_layer: int = 768,
-        pruning_number: int = 50,
-    ) -> None:
-        score_pair = [(s, id) for id, s in enumerate(score)]
-        score_pair.sort(key=lambda x: x[0], reverse=True)   # true means descending
-
-        # freeze less important neurons in forget set
-        for i in range(pruning_number, len(score_pair)):
-            del_pair = score_pair[i]
-            id = del_pair[1]
-            neuron_id = id % neuron_number_per_layer
-            layer_id = id // neuron_number_per_layer
-            with torch.no_grad():
-                for j in range(3072):
-                    self.model.transformer.h[layer_id].mlp.c_proj.weight[j][neuron_id].zero_()
-                # we need to prevent the gradient of the pruned neuron from being updated
-                self.model.transformer.h[layer_id].mlp.c_proj.weight.requires_grad = False
-                self.model.transformer.h[layer_id].mlp.c_proj.bias[neuron_id].requires_grad = False
-
-        # remember to remove hook
-        for hook in self.hooks:
-            hook.remove()
-
-        return None
