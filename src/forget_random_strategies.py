@@ -377,30 +377,61 @@ def imp_pruning(
     device,
     **kwargs,
 ):
-    parameters = {
-        "lower_bound": 1,
-        "exponent": 1,
-        "magnitude_diff": None,
-        "min_layer": -1,
-        "max_layer": -1,
-        "forget_threshold": 1,
-        "dampening_constant": dampening_constant,
-        "selection_weighting": selection_weighting,
-    }
-
     # load the trained model
-    optimizer = torch.optim.SGD(model.parameters(), lr=0.1)
+    optimizer = torch.optim.SGD(model.parameters(), lr=1e-2)
 
-    pdr = imp.ParameterPerturber(model, optimizer, device, parameters)
+    pdr = imp.ParameterPerturber(model, optimizer, device)
+    pdr.freeze_neurons()
     model = model.eval()
-
-    print(kwargs)
+    
+    # print(kwargs)
     with torch.no_grad():
         forget_importances = pdr.calc_importance(forget_train_dl, kwargs["forget_type"])
         retain_importances = pdr.calc_importance(retain_train_dl, kwargs["forget_type"])
-
+ 
     score = [x / (y + 0.01) for x, y in zip(forget_importances, retain_importances)]
     pdr.modify_neuron(score, pruning_percent=kwargs["pruning_percent"])
+
+    pdr.remove_hooks()
+
+    return get_metric_scores(
+        model,
+        unlearning_teacher,
+        retain_train_dl,
+        retain_valid_dl,
+        forget_train_dl,
+        forget_valid_dl,
+        valid_dl,
+        device,
+    )
+
+
+def reverse_gradient(
+    model,
+    unlearning_teacher,
+    retain_train_dl,
+    retain_valid_dl,
+    forget_train_dl,
+    forget_valid_dl,
+    valid_dl,
+    dampening_constant,
+    selection_weighting,
+    full_train_dl,
+    device,
+    **kwargs,
+):
+
+    # load the trained model
+    optimizer = torch.optim.SGD(model.parameters(), lr=1e-2)
+
+    pdr = imp.ParameterPerturber(model, optimizer, device)
+
+    pdr.freeze_neurons()
+    reverse_fit(5, model, forget_train_dl, forget_valid_dl, device)
+
+    torch.cuda.empty_cache()
+
+    pdr.remove_hooks()
 
     return get_metric_scores(
         model,

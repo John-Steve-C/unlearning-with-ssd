@@ -192,3 +192,49 @@ def fit_one_cycle(
         epoch_end(model, epoch, result)
         history.append(result)
     return history
+
+def reverse_fit(
+    epochs, model, train_loader, val_loader, device, lr=0.01, milestones=None
+):
+    torch.cuda.empty_cache()
+    history = []
+
+    optimizer = torch.optim.SGD(model.parameters(), lr, momentum=0.9, weight_decay=5e-4)
+    # if milestones:
+    #     train_scheduler = torch.optim.lr_scheduler.MultiStepLR(
+    #         optimizer, milestones=milestones, gamma=0.2
+    #     )  # learning rate decay
+    #     warmup_scheduler = WarmUpLR(optimizer, len(train_loader))
+
+    for epoch in range(epochs):
+        # if epoch > 1 and milestones:
+        #     train_scheduler.step(epoch)
+
+        model.train()
+        train_losses = []
+        lrs = []
+        for batch in train_loader:
+            loss = training_step(model, batch, device)
+            train_losses.append(loss)
+            loss.backward()
+
+            for (name, p) in model.named_parameters():
+                if p.grad is not None and p.requires_grad:
+                    p.grad.data = -p.grad.data
+            
+            optimizer.step()
+            optimizer.zero_grad()
+
+            lrs.append(get_lr(optimizer))
+
+            # if epoch <= 1 and milestones:
+            #     warmup_scheduler.step()
+
+        # Validation phase
+        result = evaluate(model, val_loader, device)
+        result["train_loss"] = torch.stack(train_losses).mean().item()
+        result["lrs"] = lrs
+        epoch_end(model, epoch, result)
+        # history.append(result)
+    # return history
+

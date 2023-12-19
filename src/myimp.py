@@ -59,16 +59,6 @@ class ParameterPerturber:
         self.alpha = None
         self.xmin = None
 
-        # print(parameters)
-        self.lower_bound = parameters["lower_bound"]
-        self.exponent = parameters["exponent"]
-        self.magnitude_diff = parameters["magnitude_diff"]  # unused
-        self.min_layer = parameters["min_layer"]
-        self.max_layer = parameters["max_layer"]
-        self.forget_threshold = parameters["forget_threshold"]
-        self.dampening_constant = parameters["dampening_constant"]
-        self.selection_weighting = parameters["selection_weighting"]
-
         # hook feature outputs
         # store the outputs will cost CUDA out of memory?
         # self.module_name = []
@@ -229,12 +219,38 @@ class ParameterPerturber:
                 # self.model.transformer.h[layer_id].mlp.c_proj.weight.requires_grad = False
                 # self.model.transformer.h[layer_id].mlp.c_proj.bias.requires_grad = False
 
-        # remember to remove hook
-        for hook in self.hooks:
-            hook.remove()
-
         return None
 
    
     # TODO: still need to modify
     # we can't directly set a neuron's 'requires_grad' to False because it's not a leaf variable
+    def freeze_neurons(
+        self,
+    ) -> None:
+        """
+        freeze neurons except the self.neuron_name
+        """
+        
+        # name_list = []
+        # for module in self.module_list:
+        #     for p in module.named_parameters():
+        #         name_list.append(p[0])
+
+        for (name, p) in self.model.named_parameters():
+            if self.neuron_name not in name:
+                # if len(p) > 2:
+                #     print(len(p))
+                #     for i in range(len(p)):
+                #         print(p[i])
+
+                p.requires_grad = False
+
+        return None
+
+    def remove_hooks(
+        self,
+    ):
+        for hook in self.hooks:
+            hook.remove()
+
+        return None
