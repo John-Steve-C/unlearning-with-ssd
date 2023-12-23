@@ -115,7 +115,8 @@ tokenizer.pad_token = tokenizer.eos_token
 
 # quantizer = GPTQQuantizer(bits=4, dataset="c4") # block_name_to_quantize = "model.decoder.layers", model_seqlen = 2048
 model = AutoModelForCausalLM.from_pretrained(args.model_name_or_path)
-# print(model)
+print(model)
+#breakpoint()
 # print(model.config)
 # print(model.transformer.h[0].attn.c_attn.weight.shape)
 # print(model.transformer.h[0].attn.c_proj.weight.shape)

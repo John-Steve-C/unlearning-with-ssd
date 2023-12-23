@@ -43,7 +43,7 @@ def clean_list(lists):
         for data in item:
             data.detach()
         del item
-
+        #neuron_name: str = "mlp.c_proj",
 class ParameterPerturber:
     def __init__(
         self,
@@ -51,7 +51,7 @@ class ParameterPerturber:
         opt,
         device="cuda" if torch.cuda.is_available() else "cpu",
         parameters=None,
-        neuron_name: str = "mlp.c_proj",
+        neuron_name: str = "mlp.down_proj",
     ):
         self.model = model
         self.opt = opt

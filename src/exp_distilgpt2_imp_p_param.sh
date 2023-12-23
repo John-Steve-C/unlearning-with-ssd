@@ -3,7 +3,7 @@ dataset=allenai/real-toxicity-prompts
 batch_size=32
 pruning_percent=$1
 seed=42
-model_name_or_path=${PWD}/models/distilgpt2
+model_name_or_path=${PWD}/models//distilgpt2_finetune/
 forget_type="abs"
 
 
