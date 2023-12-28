@@ -381,11 +381,14 @@ def imp_pruning(
     # load the trained model
     optimizer = torch.optim.SGD(model.parameters(), lr=1e-2)
 
-    pdr = imp.ParameterPerturber(model, optimizer, device)
+    print(kwargs)
+    neuron_name = kwargs["neuron_name"] 
+    pdr = imp.ParameterPerturber(model, optimizer, device, neuron_name=neuron_name)
     pdr.freeze_neurons()
     model = model.eval()
     
-    print(kwargs)
+    
+    
     retain_importances_pkl = kwargs["retain_importances_pkl"]
     forget_importances_pkl = kwargs["forget_importances_pkl"]
 

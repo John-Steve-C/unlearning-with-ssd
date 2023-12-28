@@ -51,7 +51,7 @@ class ParameterPerturber:
         opt,
         device="cuda" if torch.cuda.is_available() else "cpu",
         parameters=None,
-        neuron_name: str = "mlp.down_proj",
+        neuron_name: str = "mlp.c_proj",
     ):
         self.model = model
         self.opt = opt
@@ -213,7 +213,10 @@ class ParameterPerturber:
                 # self.model.transformer.h[layer_id].mlp.c_proj.bias[neuron_id].zero_()
                 for j in range(self.weight_shape[0]):
                     self.module_list[layer_id].weight[j][neuron_id].zero_()
-                #self.module_list[layer_id].bias[neuron_id].zero_()
+                try:
+                    self.module_list[layer_id].bias[neuron_id].zero_()
+                except:
+                    continue
                 
                 # we need to prevent the gradient of the pruned neuron from being updated
                 # self.model.transformer.h[layer_id].mlp.c_proj.weight.requires_grad = False

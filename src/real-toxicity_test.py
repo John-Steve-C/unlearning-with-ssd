@@ -100,6 +100,10 @@ parser.add_argument(
     "-retain_importances_pkl", type=str, default="None", help="list of importance"
 )
 
+parser.add_argument(
+    "-neuron_name", type=str, default="mlp.c_proj", help="mlp.down_proj for llama2"
+)
+
 args = parser.parse_args()
 
 # ---------------------------------------- Set seeds
@@ -123,8 +127,7 @@ tokenizer.pad_token = tokenizer.eos_token
 
 # quantizer = GPTQQuantizer(bits=4, dataset="c4") # block_name_to_quantize = "model.decoder.layers", model_seqlen = 2048
 model = AutoModelForCausalLM.from_pretrained(args.model_name_or_path)
-print(model)
-#breakpoint()
+#print(model)
 # print(model.config)
 # print(model.transformer.h[0].attn.c_attn.weight.shape)
 # print(model.transformer.h[0].attn.c_proj.weight.shape)
@@ -138,7 +141,9 @@ model.to(device)
 # unlearning_teacher = quantizer.quantize_model(unlearning_teacher, tokenizer)
 #unlearning_teacher.to(device)
 
+# disable unlearning_teacher to same gpu memory
 unlearning_teacher = None
+
 #------------------------- data preprocess
 
 def convert_to_features(example_batch):
@@ -156,8 +161,6 @@ def combine_text(example):
     example["text"] = example["prompt"]["text"] # + example["continuation"]["text"]
     return example
 
-# need to modify!
-#total_size = 1000
 
 #trainset = load_dataset(args.dataset, split='train').shuffle(seed=42).select(range(2 * total_size))
 trainset = load_dataset(args.dataset, split='train')
@@ -240,7 +243,8 @@ kwargs = {
     "pruning_percent": args.pruning_percent,
     "forget_type": args.forget_type,
     "retain_importances_pkl": args.retain_importances_pkl,
-    "forget_importances_pkl": args.forget_importances_pkl
+    "forget_importances_pkl": args.forget_importances_pkl,
+    "neuron_name": args.neuron_name
 }
 
 pure_model_name = args.origin_model.split("/")[-1]
