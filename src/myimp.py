@@ -221,8 +221,28 @@ class ParameterPerturber:
 
         return None
 
+    def get_mask(
+        self,
+        score: list,
+        pruning_percent: float,
+    ) -> torch.Tensor:
+        
+        # only important neurons will be set to 1 for updating
+        mask = torch.zeros(self.layers, self.neuron_number_per_layer, device=self.device)
+        pruning_number = int(self.total_neuron_number * pruning_percent)
+
+        score_pair = [(s, id) for id, s in enumerate(score)]
+        score_pair.sort(key=lambda x: x[0], reverse=True)   # true means descending
+
+        for i in range(pruning_number):
+            del_pair = score_pair[i]
+            id = del_pair[1]
+            neuron_id = id % self.neuron_number_per_layer
+            layer_id = id // self.neuron_number_per_layer
+            mask[layer_id][neuron_id] = 1.
+        
+        return mask
    
-    # TODO: still need to modify
     # we can't directly set a neuron's 'requires_grad' to False because it's not a leaf variable
     def freeze_neurons(
         self,

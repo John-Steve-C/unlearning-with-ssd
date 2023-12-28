@@ -238,3 +238,41 @@ def reverse_fit(
         # history.append(result)
     # return history
 
+def reverse_part_fit(
+    epochs, mask, model, train_loader, val_loader, device, lr=0.01, milestones=None
+):
+    torch.cuda.empty_cache()
+    history = []
+
+    optimizer = torch.optim.SGD(model.parameters(), lr, momentum=0.9, weight_decay=5e-4)
+    
+    for epoch in range(epochs):
+        model.train()
+        train_losses = []
+        lrs = []
+        for batch in train_loader:
+            loss = training_step(model, batch, device)
+            train_losses.append(loss)
+            loss.backward()
+
+            idx = 0
+            for (name, p) in model.named_parameters():
+                if p.grad is not None and p.requires_grad:
+                    # print(idx, name)
+                    # print(p.grad.data.shape)
+                    # (weight, bias) = (0, 1), (2, 3) ... they are arranged in order
+                    p.grad.data *= -mask[int(idx / 2)]  # reverse the grad of some neurons in the parameter
+                    idx += 1
+            
+            optimizer.step()
+            optimizer.zero_grad()
+
+            lrs.append(get_lr(optimizer))
+
+        # Validation phase
+        result = evaluate(model, val_loader, device)
+        result["train_loss"] = torch.stack(train_losses).mean().item()
+        result["lrs"] = lrs
+        epoch_end(model, epoch, result)
+        # history.append(result)
+    # return history

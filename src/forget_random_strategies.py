@@ -375,6 +375,7 @@ def imp_pruning(
     selection_weighting,
     full_train_dl,
     device,
+    modify_methods: str = 'reverse',
     **kwargs,
 ):
     # load the trained model
@@ -390,7 +391,14 @@ def imp_pruning(
         retain_importances = pdr.calc_importance(retain_train_dl, kwargs["forget_type"])
  
     score = [x / (y + 0.01) for x, y in zip(forget_importances, retain_importances)]
-    pdr.modify_neuron(score, pruning_percent=kwargs["pruning_percent"])
+    
+    if modify_methods == 'zero': 
+        # modify method 1
+        pdr.modify_neuron(score, pruning_percent=kwargs["pruning_percent"])
+    elif modify_methods == 'reverse':
+        # modify method 2 : reverse grad
+        mask = pdr.get_mask(score, pruning_percent=kwargs["pruning_percent"])
+        reverse_part_fit(5, mask, model, forget_train_dl, forget_valid_dl, device)
 
     pdr.remove_hooks()
 
@@ -405,7 +413,7 @@ def imp_pruning(
         device,
     )
 
-
+# a naive approach to reverse all grad
 def reverse_gradient(
     model,
     unlearning_teacher,
