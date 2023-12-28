@@ -3,7 +3,7 @@ Refer to forget_full_class_... for comments
 This file is near identical with minimal modifications to facilitate random forgetting.
 Seperate file to allow for easy reuse.
 """
-
+import os
 import random
 import numpy as np
 from typing import Tuple, List
@@ -22,6 +22,7 @@ import ssd as ssd
 import myimp as imp
 import conf
 import math
+import pickle
 
 def get_metric_scores(
     model,
@@ -381,15 +382,36 @@ def imp_pruning(
     # load the trained model
     optimizer = torch.optim.SGD(model.parameters(), lr=1e-2)
 
-    pdr = imp.ParameterPerturber(model, optimizer, device)
+    print(kwargs)
+    neuron_name = kwargs["neuron_name"] 
+    pdr = imp.ParameterPerturber(model, optimizer, device, neuron_name=neuron_name)
     pdr.freeze_neurons()
     model = model.eval()
     
-    # print(kwargs)
-    with torch.no_grad():
-        forget_importances = pdr.calc_importance(forget_train_dl, kwargs["forget_type"])
-        retain_importances = pdr.calc_importance(retain_train_dl, kwargs["forget_type"])
- 
+    
+    
+    retain_importances_pkl = kwargs["retain_importances_pkl"]
+    forget_importances_pkl = kwargs["forget_importances_pkl"]
+
+    if os.path.exists(retain_importances_pkl):
+        with open(retain_importances_pkl, "rb") as file:
+           retain_importances = pickle.load(file)
+    else:
+        with torch.no_grad():
+           retain_importances = pdr.calc_importance(retain_train_dl, kwargs["forget_type"])
+        with open(retain_importances_pkl, "wb") as file:
+           pickle.dump(retain_importances, file)
+           
+    if os.path.exists(forget_importances_pkl):
+        with open(forget_importances_pkl, "rb") as file:
+           forget_importances = pickle.load(file)
+    else:                      
+        with torch.no_grad():
+           forget_importances = pdr.calc_importance(forget_train_dl, kwargs["forget_type"])
+
+        with open(forget_importances_pkl, "wb") as file:
+           pickle.dump(forget_importances, file)
+
     score = [x / (y + 0.01) for x, y in zip(forget_importances, retain_importances)]
     
     if modify_methods == 'zero': 

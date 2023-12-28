@@ -43,7 +43,7 @@ def clean_list(lists):
         for data in item:
             data.detach()
         del item
-
+        #neuron_name: str = "mlp.c_proj",
 class ParameterPerturber:
     def __init__(
         self,
@@ -181,7 +181,7 @@ class ParameterPerturber:
         if imp_type == "freq" or imp_type == "abs":
             importance = [x / (row * D_num) for x in total_cnt_list]
         else:
-            importance = [torch.sqrt(x / (row * D_num)) for x in total_cnt_list]
+            importance = [math.sqrt(x / (row * D_num)) for x in total_cnt_list]
         # print(len(importance))      # stands for the total neuron number = 768 * 6 = 4608
         return importance
 
@@ -202,7 +202,7 @@ class ParameterPerturber:
         score_pair = [(s, id) for id, s in enumerate(score)]
         score_pair.sort(key=lambda x: x[0], reverse=True)   # true means descending
 
-        for i in range(pruning_number):
+        for i in tqdm(range(pruning_number)):
             del_pair = score_pair[i]
             id = del_pair[1]
             neuron_id = id % self.neuron_number_per_layer
@@ -213,7 +213,10 @@ class ParameterPerturber:
                 # self.model.transformer.h[layer_id].mlp.c_proj.bias[neuron_id].zero_()
                 for j in range(self.weight_shape[0]):
                     self.module_list[layer_id].weight[j][neuron_id].zero_()
-                self.module_list[layer_id].bias[neuron_id].zero_()
+                try:
+                    self.module_list[layer_id].bias[neuron_id].zero_()
+                except:
+                    continue
                 
                 # we need to prevent the gradient of the pruned neuron from being updated
                 # self.model.transformer.h[layer_id].mlp.c_proj.weight.requires_grad = False

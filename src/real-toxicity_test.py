@@ -92,6 +92,18 @@ parser.add_argument(
     "-forget_type", type=str, default="freq", help="forget type: freq/abs/rms/std"
 )
 
+parser.add_argument(
+    "-forget_importances_pkl", type=str, default="None", help="list of importance"
+)
+
+parser.add_argument(
+    "-retain_importances_pkl", type=str, default="None", help="list of importance"
+)
+
+parser.add_argument(
+    "-neuron_name", type=str, default="mlp.c_proj", help="mlp.down_proj for llama2"
+)
+
 args = parser.parse_args()
 
 # ---------------------------------------- Set seeds
@@ -115,7 +127,7 @@ tokenizer.pad_token = tokenizer.eos_token
 
 # quantizer = GPTQQuantizer(bits=4, dataset="c4") # block_name_to_quantize = "model.decoder.layers", model_seqlen = 2048
 model = AutoModelForCausalLM.from_pretrained(args.model_name_or_path)
-# print(model)
+#print(model)
 # print(model.config)
 # print(model.transformer.h[0].attn.c_attn.weight.shape)
 # print(model.transformer.h[0].attn.c_proj.weight.shape)
@@ -125,9 +137,12 @@ model = AutoModelForCausalLM.from_pretrained(args.model_name_or_path)
 model.to(device)
 
 # or we can call it origin model
-unlearning_teacher = AutoModelForCausalLM.from_pretrained(args.origin_model)
+#unlearning_teacher = AutoModelForCausalLM.from_pretrained(args.origin_model)
 # unlearning_teacher = quantizer.quantize_model(unlearning_teacher, tokenizer)
-unlearning_teacher.to(device)
+#unlearning_teacher.to(device)
+
+# disable unlearning_teacher to same gpu memory
+unlearning_teacher = None
 
 #------------------------- data preprocess
 
@@ -146,14 +161,9 @@ def combine_text(example):
     example["text"] = example["prompt"]["text"] # + example["continuation"]["text"]
     return example
 
-# need to modify!
-#total_size = 1000
 
 #trainset = load_dataset(args.dataset, split='train').shuffle(seed=42).select(range(2 * total_size))
-if args.use_sample:
-    trainset = load_dataset(args.dataset, split='train').select(range(2000))
-else:
-    trainset = load_dataset(args.dataset, split='train')
+trainset = load_dataset(args.dataset, split='train')
 # validset = load_dataset(args.dataset, split='train').select(range(10000, 12000))
 validset = trainset
 trainset = trainset.map(combine_text)
@@ -174,6 +184,10 @@ retain_train = trainset.filter(lambda example: example["continuation"]["toxicity
 #forget_train = forget_train.select(range(int(total_size * args.forget_perc)))
 #retain_train = retain_train.select(range(int(total_size * (1 - args.forget_perc))))
 
+if args.use_sample:
+    forget_train = forget_train.select(range(int(256)))
+    retain_train = retain_train.select(range(int(256)))
+
 print('total dataset size : ', len(trainset))
 print('forget train size : ', len(forget_train))
 print('retain train size : ', len(retain_train))
@@ -192,8 +206,8 @@ validloader = DataLoader(validset, num_workers=4, batch_size=args.b, shuffle=Fal
 # forget_train, retain_train = torch.utils.data.random_split(
 #     trainset, [args.forget_perc, 1 - args.forget_perc]
 # )
-forget_train_dl = DataLoader(list(forget_train), batch_size=args.b)
-retain_train_dl = DataLoader(list(retain_train), batch_size=args.b)
+forget_train_dl = DataLoader(list(forget_train), batch_size=args.b, num_workers=8, pin_memory=True)
+retain_train_dl = DataLoader(list(retain_train), batch_size=args.b, num_workers=8, pin_memory=True)
 forget_valid_dl = forget_train_dl
 retain_valid_dl = retain_train_dl
 
@@ -227,7 +241,10 @@ kwargs = {
     "device": device,
     "model_name": args.origin_model,
     "pruning_percent": args.pruning_percent,
-    "forget_type": args.forget_type
+    "forget_type": args.forget_type,
+    "retain_importances_pkl": args.retain_importances_pkl,
+    "forget_importances_pkl": args.forget_importances_pkl,
+    "neuron_name": args.neuron_name
 }
 
 pure_model_name = args.origin_model.split("/")[-1]
