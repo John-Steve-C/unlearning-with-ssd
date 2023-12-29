@@ -376,14 +376,15 @@ def imp_pruning(
     selection_weighting,
     full_train_dl,
     device,
-    modify_methods: str = 'reverse',
     **kwargs,
 ):
     # load the trained model
     optimizer = torch.optim.SGD(model.parameters(), lr=1e-2)
 
     print(kwargs)
-    neuron_name = kwargs["neuron_name"] 
+    neuron_name = kwargs["neuron_name"]
+    modify_method = kwargs["modify_method"]
+
     pdr = imp.ParameterPerturber(model, optimizer, device, neuron_name=neuron_name)
     pdr.freeze_neurons()
     model = model.eval()
@@ -414,10 +415,10 @@ def imp_pruning(
 
     score = [x / (y + 0.01) for x, y in zip(forget_importances, retain_importances)]
     
-    if modify_methods == 'zero': 
+    if modify_method == 'zero': 
         # modify method 1
         pdr.modify_neuron(score, pruning_percent=kwargs["pruning_percent"])
-    elif modify_methods == 'reverse':
+    elif modify_method == 'reverse':
         # modify method 2 : reverse grad
         mask = pdr.get_mask(score, pruning_percent=kwargs["pruning_percent"])
         reverse_part_fit(5, mask, model, forget_train_dl, forget_valid_dl, device)

@@ -104,6 +104,10 @@ parser.add_argument(
     "-neuron_name", type=str, default="mlp.c_proj", help="mlp.down_proj for llama2"
 )
 
+parser.add_argument(
+    "-modify_method", type=str, default="zero", help="reverse for reverse gradient"
+)
+
 args = parser.parse_args()
 
 # ---------------------------------------- Set seeds
@@ -244,7 +248,8 @@ kwargs = {
     "forget_type": args.forget_type,
     "retain_importances_pkl": args.retain_importances_pkl,
     "forget_importances_pkl": args.forget_importances_pkl,
-    "neuron_name": args.neuron_name
+    "neuron_name": args.neuron_name,
+    "modify_method": args.modify_method
 }
 
 pure_model_name = args.origin_model.split("/")[-1]
