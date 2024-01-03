@@ -11,6 +11,9 @@ import pickle
 from transformers import Trainer, TrainingArguments
 from transformers import AutoModelForCausalLM
 from transformers import AdamW
+from torch.nn.utils import parameters_to_vector, vector_to_parameters
+
+
 @dataclass
 class ModelArguments:
     model_name_or_path: Optional[str] = field(default="distilgpt2")
@@ -50,10 +53,10 @@ class CustomTrainer(Trainer):
     def create_optimizer_and_scheduler(self, num_training_steps: int):
         selected_named_parameters = [(name, param) for name, param in self.model.named_parameters() if "mlp.down_proj" in name]
         selected_named_parameters = sorted(selected_named_parameters, key=lambda x: x[0])
-        self.optimizer=CustomOpt([{'params': param, 'name': name} for name, param in selected_named_parameters], lr=5e-5, mask=self.mask)        
-        self.lr_scheduler=transformers.get_cosine_schedule_with_warmup(optimizer=self.optimizer,
-                                                                        num_warmup_steps=2000,
-                                                                        num_training_steps=num_training_steps)
+        self.optimizer=CustomOpt([{'params': param, 'name': name} for name, param in selected_named_parameters], lr=1e-3, mask=self.mask)        
+        self.lr_scheduler=transformers.get_linear_schedule_with_warmup(optimizer=self.optimizer,
+                                                                       num_warmup_steps=10,
+                                                                       num_training_steps=num_training_steps)
 
 def get_mask(
         model,
@@ -116,10 +119,12 @@ class CustomOpt(AdamW):
         for idx, group in enumerate(self.param_groups):
             #print(group['name'])
             for p in group['params']:
-                #grad = p.grad
+                flat_grad = p.grad
                 #grad = p.grad*-torch.ones_like(mask[idx])
-                grad = p.grad*mask[idx]
-                p.data.add_(-group['lr'], grad)
+                unflat_grad = torch.unflatten(flat_grad,0,(4096, 11008))
+                unflat_grad *= -mask[idx]
+                flat_grad=torch.flatten(unflat_grad)
+                p.data.add_(-group['lr'], flat_grad)
 
         return loss
 
@@ -169,6 +174,7 @@ def train():
     model = AutoModelForCausalLM.from_pretrained(model_args.model_name_or_path)
     score = get_score(data_args.retain_importances_pkl, data_args.forget_importances_pkl)
     mask = get_mask(model, score, pruning_percent=training_args.pruning_percent)
+    
 
     #mask = torch.zeros(32, 5636096)
 
