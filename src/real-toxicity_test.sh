@@ -23,7 +23,7 @@ n_classes=2
 
 # TODO: need to modify this!
 # model_name_or_path=./models/
-model_name_or_path=distilgpt2
+model_name_or_path=./models/distilgpt2
 
 # Run the Python script
 # CUDA_VISIBLE_DEVICES=$DEVICE python3 toxic_gen_test.py -model $model -dataset $dataset -classes $n_classes -method baseline -forget_perc $forget_perc -model_path $model_path -seed $seed -b $batch_size
