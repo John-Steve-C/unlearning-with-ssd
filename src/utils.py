@@ -7,7 +7,13 @@ from training_utils import *
 from transformers import AutoTokenizer, RobertaTokenizer, RobertaForSequenceClassification
 from tqdm import tqdm
 
-orig_tokenizer = AutoTokenizer.from_pretrained("distilgpt2", padding_side="right", use_fast=False)
+
+
+TOKENIZER_PATH=os.environ.get("LLAMA_TOKENIZER_PATH", "distilgpt2")
+
+print(f"######Using tokenizer: {TOKENIZER_PATH}")
+orig_tokenizer = AutoTokenizer.from_pretrained(TOKENIZER_PATH, padding_side="right", use_fast=False)
+
 
 toxic_cls_tokenizer = RobertaTokenizer.from_pretrained('SkolkovoInstitute/roberta_toxicity_classifier')
 toxic_cls_model = RobertaForSequenceClassification.from_pretrained('SkolkovoInstitute/roberta_toxicity_classifier')
