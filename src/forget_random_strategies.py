@@ -20,6 +20,7 @@ from metrics import UnLearningScore, get_membership_attack_prob
 from utils import *
 import ssd as ssd
 import myimp as imp
+import myimp_large as imp_large
 import conf
 import math
 import pickle
@@ -435,6 +436,59 @@ def imp_pruning(
         valid_dl,
         device,
     )
+
+def imp_pruning_large(
+    model,
+    unlearning_teacher,
+    retain_train_dl,
+    retain_valid_dl,
+    forget_train_dl,
+    forget_valid_dl,
+    valid_dl,
+    dampening_constant,
+    selection_weighting,
+    full_train_dl,
+    device,
+    **kwargs,
+):
+    # load the trained model
+    optimizer = torch.optim.SGD(model.parameters(), lr=1e-2)
+
+    print(kwargs)
+    # neuron_name = kwargs["neuron_name"]
+    # modify_method = kwargs["modify_method"]
+
+    pdr = imp_large.ParameterPerturber(model, optimizer, device)
+    model = model.eval()
+        
+    with torch.no_grad():
+        retain_importances = pdr.calc_importance(retain_train_dl, kwargs["forget_type"])
+        forget_importances = pdr.calc_importance(forget_train_dl, kwargs["forget_type"])
+
+    score = [x / (y + 0.01) for x, y in zip(forget_importances, retain_importances)]
+    
+    pdr.modify_neuron(score, pruning_percent=kwargs["pruning_percent"])
+
+    # if modify_method == 'zero': 
+    #     # modify method 1
+    #     pdr.modify_neuron(score, pruning_percent=kwargs["pruning_percent"])
+    # elif modify_method == 'reverse':
+    #     # modify method 2 : reverse grad
+    #     mask = pdr.get_mask(score, pruning_percent=kwargs["pruning_percent"])
+    #     reverse_part_fit(5, mask, model, forget_train_dl, forget_valid_dl, device)
+
+
+    return get_metric_scores(
+        model,
+        unlearning_teacher,
+        retain_train_dl,
+        retain_valid_dl,
+        forget_train_dl,
+        forget_valid_dl,
+        valid_dl,
+        device,
+    )
+
 
 # a naive approach to reverse all grad
 def reverse_gradient(

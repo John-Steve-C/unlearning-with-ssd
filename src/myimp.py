@@ -1,6 +1,5 @@
 """
-This file is used for the Selective Synaptic Dampening method
-Strategy files use the methods from here
+The importance in this file is calculated per neuron, which means smaller granularity.
 """
 
 import torch
@@ -43,7 +42,8 @@ def clean_list(lists):
         for data in item:
             data.detach()
         del item
-        #neuron_name: str = "mlp.c_proj",
+       
+# neuron_name: str = "mlp.c_proj",
 class ParameterPerturber:
     def __init__(
         self,
@@ -102,7 +102,7 @@ class ParameterPerturber:
         #         print("child is conv1d")
         #         child.register_forward_hook(hook=hook)
 
-    def calc_importance(self, dataloader: DataLoader, imp_type: str) -> Dict[str, torch.Tensor]:
+    def calc_importance(self, dataloader: DataLoader, imp_type: str) -> List:
         """
         Adapated from: Avalanche: an End-to-End Library for Continual Learning - https://github.com/ContinualAI/avalanche
         Calculate per-parameter, importance
