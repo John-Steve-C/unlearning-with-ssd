@@ -36,7 +36,7 @@ def evaluate(model, val_loader, device):
 def judge_toxicity(text, device):
     # load tokenizer and model weights
     # prepare the input
-    batch = toxic_cls_tokenizer.encode(text, return_tensors='pt')
+    batch = toxic_cls_tokenizer.encode(text, return_tensors='pt', max_length=512)
     # inference
     batch = batch.to(device)
     output = toxic_cls_model(batch)
