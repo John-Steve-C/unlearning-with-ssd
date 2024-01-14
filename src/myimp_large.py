@@ -46,10 +46,10 @@ class ParameterPerturber:
         self.device = device
         self.alpha = None
         self.xmin = None
+        self.param_num = sum(1 for _ in model.named_parameters())
 
     def calc_importance(self, dataloader: DataLoader) -> List:
-
-        importance = [0] * len(self.model.named_parameters())
+        importance = [0] * self.param_num
 
         dataloader = tqdm(dataloader)
         dataloader.set_description("Calculating importance...")
@@ -79,7 +79,7 @@ class ParameterPerturber:
         None
 
         """
-        pruning_number = int(self.total_neuron_number * pruning_percent)
+        pruning_number = int(self.param_num * pruning_percent)
 
         score_pair = [(s, id) for id, s in enumerate(score)]
         score_pair.sort(key=lambda x: x[0], reverse=True)   # true means descending

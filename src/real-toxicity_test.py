@@ -77,6 +77,7 @@ parser.add_argument(
         "pdr_tuning",
         "imp_pruning",
         "reverse_gradient",
+        "imp_pruning_large",
     ],
     help="select unlearning method from choice set",
 )

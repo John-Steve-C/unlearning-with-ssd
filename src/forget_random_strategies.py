@@ -462,8 +462,8 @@ def imp_pruning_large(
     model = model.eval()
         
     with torch.no_grad():
-        retain_importances = pdr.calc_importance(retain_train_dl, kwargs["forget_type"])
-        forget_importances = pdr.calc_importance(forget_train_dl, kwargs["forget_type"])
+        retain_importances = pdr.calc_importance(retain_train_dl)
+        forget_importances = pdr.calc_importance(forget_train_dl)
 
     score = [x / (y + 0.01) for x, y in zip(forget_importances, retain_importances)]
     
