@@ -416,6 +416,8 @@ def imp_pruning(
 
     score = [x / (y + 0.01) for x, y in zip(forget_importances, retain_importances)]
     
+    pdr.remove_hooks()
+
     if modify_method == 'zero': 
         # modify method 1
         pdr.modify_neuron(score, pruning_percent=kwargs["pruning_percent"])
@@ -423,8 +425,6 @@ def imp_pruning(
         # modify method 2 : reverse grad
         mask = pdr.get_mask(score, pruning_percent=kwargs["pruning_percent"])
         reverse_part_fit(5, mask, model, forget_train_dl, forget_valid_dl, device)
-
-    pdr.remove_hooks()
 
     return get_metric_scores(
         model,
@@ -454,16 +454,15 @@ def imp_pruning_large(
     # load the trained model
     optimizer = torch.optim.SGD(model.parameters(), lr=1e-2)
 
-    print(kwargs)
+    # print(kwargs)
     # neuron_name = kwargs["neuron_name"]
     # modify_method = kwargs["modify_method"]
 
     pdr = imp_large.ParameterPerturber(model, optimizer, device)
     model = model.eval()
-        
-    with torch.no_grad():
-        retain_importances = pdr.calc_importance(retain_train_dl)
-        forget_importances = pdr.calc_importance(forget_train_dl)
+    
+    retain_importances = pdr.calc_importance(retain_train_dl, kwargs["forget_type"])
+    forget_importances = pdr.calc_importance(forget_train_dl, kwargs["forget_type"])
 
     score = [x / (y + 0.01) for x, y in zip(forget_importances, retain_importances)]
     
@@ -509,14 +508,14 @@ def reverse_gradient(
     # load the trained model
     optimizer = torch.optim.SGD(model.parameters(), lr=1e-2)
 
-    pdr = imp.ParameterPerturber(model, optimizer, device)
+    # pdr = imp.ParameterPerturber(model, optimizer, device)
 
-    pdr.freeze_neurons()
+    # pdr.freeze_neurons()
     reverse_fit(5, model, forget_train_dl, forget_valid_dl, device)
 
     torch.cuda.empty_cache()
 
-    pdr.remove_hooks()
+    # pdr.remove_hooks()
 
     return get_metric_scores(
         model,

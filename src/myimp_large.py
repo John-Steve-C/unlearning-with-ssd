@@ -47,24 +47,39 @@ class ParameterPerturber:
         self.alpha = None
         self.xmin = None
         self.param_num = sum(1 for _ in model.named_parameters())
+        print("param_num: ", self.param_num)
 
-    def calc_importance(self, dataloader: DataLoader) -> List:
+    def calc_importance(self, dataloader: DataLoader, imp_type: str) -> List:
         importance = [0] * self.param_num
 
         dataloader = tqdm(dataloader)
         dataloader.set_description("Calculating importance...")
         
-        with torch.no_grad():
+        if imp_type == "perturb":
+            with torch.no_grad():
+                for batch in dataloader:
+                    b = {k: v.to(self.device) for k, v in batch.items()}     # a dictionary of tensors
+                    origin_loss = self.model(**b).loss.item()
+
+                    idx = 0
+                    for (name, p) in self.model.named_parameters():
+                        p.data = -p.data
+                        importance[idx] += self.model(**b).loss.item() - origin_loss
+                        idx += 1
+                        p.data = -p.data
+        elif imp_type == 'grad':
             for batch in dataloader:
-                b = {k: v.to(self.device) for k, v in batch.items()}     # a dictionary of tensors
+                b = {k: v.to(self.device) for k, v in batch.items()}
+                loss = self.model(**b).loss
+                self.opt.zero_grad()
+                loss.backward()
 
                 idx = 0
                 for (name, p) in self.model.named_parameters():
-                    p.data = -p.data
-                    importance[idx] += self.model(**b).loss.item()
-                    idx += 1
-                    p.data = -p.data
-                    
+                    if p.grad is None:
+                        importance[idx] += p.grad.data.clone().pow(2)
+                        idx += 1
+
         return importance
 
     def modify_neuron(

@@ -67,7 +67,7 @@ def train():
     
     tokenizer.pad_token = tokenizer.eos_token
 
-    train_dataset = load_dataset("allenai/real-toxicity-prompts", split='train').shuffle(seed=42).select(range(10000))
+    train_dataset = load_dataset("allenai/real-toxicity-prompts", split='train') # .shuffle(seed=42).select(range(10000))
 
     # breakpoint()
     if data_args.retain_only:

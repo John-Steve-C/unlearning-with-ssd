@@ -142,9 +142,9 @@ model = AutoModelForCausalLM.from_pretrained(args.model_name_or_path)
 model.to(device)
 
 # or we can call it origin model
-#unlearning_teacher = AutoModelForCausalLM.from_pretrained(args.origin_model)
+# unlearning_teacher = AutoModelForCausalLM.from_pretrained(args.origin_model)
 # unlearning_teacher = quantizer.quantize_model(unlearning_teacher, tokenizer)
-#unlearning_teacher.to(device)
+# unlearning_teacher.to(device)
 
 # disable unlearning_teacher to same gpu memory
 unlearning_teacher = None
