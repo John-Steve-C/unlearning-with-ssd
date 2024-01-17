@@ -456,7 +456,7 @@ def imp_pruning_large(
 
     # print(kwargs)
     # neuron_name = kwargs["neuron_name"]
-    # modify_method = kwargs["modify_method"]
+    modify_method = kwargs["modify_method"]
 
     pdr = imp_large.ParameterPerturber(model, optimizer, device)
     model = model.eval()
@@ -466,15 +466,13 @@ def imp_pruning_large(
 
     score = [x / (y + 0.01) for x, y in zip(forget_importances, retain_importances)]
     
-    pdr.modify_neuron(score, pruning_percent=kwargs["pruning_percent"])
-
-    # if modify_method == 'zero': 
-    #     # modify method 1
-    #     pdr.modify_neuron(score, pruning_percent=kwargs["pruning_percent"])
-    # elif modify_method == 'reverse':
-    #     # modify method 2 : reverse grad
-    #     mask = pdr.get_mask(score, pruning_percent=kwargs["pruning_percent"])
-    #     reverse_part_fit(5, mask, model, forget_train_dl, forget_valid_dl, device)
+    if modify_method == 'zero': 
+        # modify method 1
+        pdr.modify_neuron(score, pruning_percent=kwargs["pruning_percent"])
+    elif modify_method == 'reverse':
+        # modify method 2 : reverse grad
+        pdr.freeze_params(score, pruning_percent=kwargs["pruning_percent"])
+        reverse_fit(5, model, forget_train_dl, forget_valid_dl, device)
 
 
     return get_metric_scores(

@@ -47,7 +47,8 @@ class ParameterPerturber:
         self.alpha = None
         self.xmin = None
         self.param_num = sum(1 for _ in model.named_parameters())
-        print("param_num: ", self.param_num)
+        # print("param_num: ", self.param_num)
+        self.name_list = []
 
     def calc_importance(self, dataloader: DataLoader, imp_type: str) -> List:
         importance = [0] * self.param_num
@@ -109,5 +110,34 @@ class ParameterPerturber:
                         p.zero_()
                     idx += 1
                 
+                
+        return None
+
+def freeze_params(
+        self,
+        score: list,
+        pruning_percent: float,
+    ) -> None:
+        
+        pruning_number = int(self.param_num * pruning_percent)
+
+        score_pair = [(s, id) for id, s in enumerate(score)]
+        score_pair.sort(key=lambda x: x[0], reverse=True)   # true means descending
+
+        for i in tqdm(range(pruning_number)):
+            del_pair = score_pair[i]
+            id = del_pair[1]
+            with torch.no_grad():
+                idx = 0
+                for (name, p) in self.model.named_parameters():
+                    if idx == id:
+                        self.name_list.append(name)
+                    idx += 1
+                
+        assert len(self.name_list) == pruning_number
+
+        for (name, p) in self.model.named_parameters():
+            if name not in self.name_list:
+                p.requires_grad = False
 
         return None
