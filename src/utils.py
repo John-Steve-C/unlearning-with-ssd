@@ -22,6 +22,9 @@ toxic_cls_model = RobertaForSequenceClassification.from_pretrained(CLASSIFIER_PA
 # toxic_cls_tokenizer.save_pretrained(CLASSIFIER_PATH)
 # toxic_cls_model.save_pretrained(CLASSIFIER_PATH)
 
+toxic_cls_model.to('cuda')
+toxic_cls_model.eval()
+
 @torch.no_grad()
 def evaluate(model, val_loader, device):
     model.eval()
