@@ -14,11 +14,13 @@ TOKENIZER_PATH=os.environ.get("LLAMA_TOKENIZER_PATH", "distilgpt2")
 print(f"######Using tokenizer: {TOKENIZER_PATH}")
 orig_tokenizer = AutoTokenizer.from_pretrained(TOKENIZER_PATH, padding_side="right", use_fast=False)
 
+CLASSIFIER_PATH=os.environ.get("CLASSIFIER_PATH", "SkolkovoInstitute/roberta_toxicity_classifier")
+print(f"######Using classifier: {CLASSIFIER_PATH}")
+toxic_cls_tokenizer = RobertaTokenizer.from_pretrained(CLASSIFIER_PATH)
+toxic_cls_model = RobertaForSequenceClassification.from_pretrained(CLASSIFIER_PATH)
 
-toxic_cls_tokenizer = RobertaTokenizer.from_pretrained('SkolkovoInstitute/roberta_toxicity_classifier')
-toxic_cls_model = RobertaForSequenceClassification.from_pretrained('SkolkovoInstitute/roberta_toxicity_classifier')
-toxic_cls_model.to('cuda')
-toxic_cls_model.eval()
+# toxic_cls_tokenizer.save_pretrained(CLASSIFIER_PATH)
+# toxic_cls_model.save_pretrained(CLASSIFIER_PATH)
 
 @torch.no_grad()
 def evaluate(model, val_loader, device):

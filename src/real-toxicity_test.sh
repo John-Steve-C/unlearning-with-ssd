@@ -14,11 +14,14 @@ seed=42
 ################ RANDOM FORGETTING ##################
 #############################################################
 # export WANDB_RUN_NAME="unlearn-toxigen-distilgpt2"
+export DISTILGPT2_PATH=./models/distilgpt2
+export CLASSIFIER_PATH=./models/roberta_toxicity_classifier
+
 
 forget_perc=0.1 # forgetting propotion
 dataset=allenai/real-toxicity-prompts
 origin_model=distilgpt2   #princeton-nlp/Sheared-LLaMA-1.3B #
-batch_size=4
+batch_size=2
 n_classes=2
 
 # TODO: need to modify this!
@@ -37,14 +40,6 @@ model_name_or_path=./models/distilgpt2
 # reset_cuda
 # CUDA_VISIBLE_DEVICES=$DEVICE python3 real-toxicity_test.py -origin_model $origin_model -dataset $dataset -classes $n_classes -method pdr_tuning -forget_perc $forget_perc -model_name_or_path $model_name_or_path -seed $seed -b $batch_size
 # # reset_cuda
-
-CUDA_VISIBLE_DEVICES=$DEVICE python3 real-toxicity_test.py -origin_model $origin_model -dataset $dataset -classes $n_classes -forget_perc $forget_perc -model_name_or_path $model_name_or_path -seed $seed -b $batch_size \
-    -method imp_pruning_large \
-    -forget_type perturb \
-    -modify_method reverse \
-    -use_sample 
-
-reset_cuda
 
 CUDA_VISIBLE_DEVICES=$DEVICE python3 real-toxicity_test.py -origin_model $origin_model -dataset $dataset -classes $n_classes -forget_perc $forget_perc -model_name_or_path $model_name_or_path -seed $seed -b $batch_size \
     -method imp_pruning_large \
