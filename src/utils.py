@@ -6,21 +6,21 @@ from torch.nn import functional as F
 from training_utils import *
 from transformers import AutoTokenizer, RobertaTokenizer, RobertaForSequenceClassification
 from tqdm import tqdm
+import pickle
 
 
-
-TOKENIZER_PATH=os.environ.get("LLAMA_TOKENIZER_PATH", "distilgpt2")
-
-print(f"######Using tokenizer: {TOKENIZER_PATH}")
+TOKENIZER_PATH = os.environ.get("LLAMA_TOKENIZER_PATH", "distilgpt2")
+print(f"###### Using tokenizer: {TOKENIZER_PATH}")
 orig_tokenizer = AutoTokenizer.from_pretrained(TOKENIZER_PATH, padding_side="right", use_fast=False)
 
-CLASSIFIER_PATH=os.environ.get("CLASSIFIER_PATH", "SkolkovoInstitute/roberta_toxicity_classifier")
-print(f"######Using classifier: {CLASSIFIER_PATH}")
+CLASSIFIER_PATH = os.environ.get("CLASSIFIER_PATH", "SkolkovoInstitute/roberta_toxicity_classifier")
+print(f"###### Using classifier: {CLASSIFIER_PATH}")
 toxic_cls_tokenizer = RobertaTokenizer.from_pretrained(CLASSIFIER_PATH)
 toxic_cls_model = RobertaForSequenceClassification.from_pretrained(CLASSIFIER_PATH)
 
-# toxic_cls_tokenizer.save_pretrained(CLASSIFIER_PATH)
-# toxic_cls_model.save_pretrained(CLASSIFIER_PATH)
+# if CLASSIFIER_PATH == "SkolkovoInstitute/roberta_toxicity_classifier":
+#     toxic_cls_tokenizer.save_pretrained('./models/roberta_toxicity_classifier')
+#     toxic_cls_model.save_pretrained('./models/roberta_toxicity_classifier')
 
 toxic_cls_model.to('cuda')
 toxic_cls_model.eval()
@@ -287,3 +287,16 @@ def reverse_part_fit(
         epoch_end(model, epoch, result)
         # history.append(result)
     # return history
+
+def get_importance(pkl_name, pdr, dataloader, forget_type):
+    
+    if os.path.exists(pkl_name):
+        with open(pkl_name, "rb") as file:
+           imp = pickle.load(file)
+    else:
+        with torch.no_grad():
+           imp = pdr.calc_importance(dataloader, forget_type)
+        with open(pkl_name, "wb") as file:
+           pickle.dump(imp, file)
+    
+    return imp

@@ -23,7 +23,6 @@ import myimp as imp
 import myimp_large as imp_large
 import conf
 import math
-import pickle
 
 def get_metric_scores(
     model,
@@ -390,33 +389,16 @@ def imp_pruning(
     pdr.freeze_neurons()
     model = model.eval()
     
-    
-    
-    retain_importances_pkl = kwargs["retain_importances_pkl"]
-    forget_importances_pkl = kwargs["forget_importances_pkl"]
-
-    if os.path.exists(retain_importances_pkl):
-        with open(retain_importances_pkl, "rb") as file:
-           retain_importances = pickle.load(file)
+    if kwargs["forget_type"] == "perturb":
+        pdr.remove_hooks()
+        retain_importances = get_importance(kwargs["retain_importances_pkl"], pdr, retain_train_dl, kwargs["forget_type"])
+        forget_importances = get_importance(kwargs["forget_importances_pkl"], pdr, forget_train_dl, kwargs["forget_type"])
     else:
-        with torch.no_grad():
-           retain_importances = pdr.calc_importance(retain_train_dl, kwargs["forget_type"])
-        with open(retain_importances_pkl, "wb") as file:
-           pickle.dump(retain_importances, file)
-           
-    if os.path.exists(forget_importances_pkl):
-        with open(forget_importances_pkl, "rb") as file:
-           forget_importances = pickle.load(file)
-    else:                      
-        with torch.no_grad():
-           forget_importances = pdr.calc_importance(forget_train_dl, kwargs["forget_type"])
+        retain_importances = get_importance(kwargs["retain_importances_pkl"], pdr, retain_train_dl, kwargs["forget_type"])
+        forget_importances = get_importance( kwargs["forget_importances_pkl"], pdr, forget_train_dl, kwargs["forget_type"])
+        pdr.remove_hooks()
 
-        with open(forget_importances_pkl, "wb") as file:
-           pickle.dump(forget_importances, file)
-
-    score = [x / (y + 0.01) for x, y in zip(forget_importances, retain_importances)]
-    
-    pdr.remove_hooks()
+    score = [x / (y + 0.01) for x, y in zip(forget_importances, retain_importances)]    
 
     if modify_method == 'zero': 
         # modify method 1
@@ -436,6 +418,7 @@ def imp_pruning(
         valid_dl,
         device,
     )
+    
 
 def imp_pruning_large(
     model,
@@ -460,9 +443,9 @@ def imp_pruning_large(
 
     pdr = imp_large.ParameterPerturber(model, optimizer, device)
     model = model.eval()
-    
-    retain_importances = pdr.calc_importance(retain_train_dl, kwargs["forget_type"])
-    forget_importances = pdr.calc_importance(forget_train_dl, kwargs["forget_type"])
+        
+    retain_importances = get_importance(kwargs["retain_importances_pkl"], pdr, retain_train_dl, kwargs["forget_type"])
+    forget_importances = get_importance(kwargs["forget_importances_pkl"], pdr, forget_train_dl, kwargs["forget_type"])
 
     score = [x / (y + 0.01) for x, y in zip(forget_importances, retain_importances)]
     

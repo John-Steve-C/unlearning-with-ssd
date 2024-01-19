@@ -112,6 +112,9 @@ class ParameterPerturber:
         Returns:
         importance (dict(str, torch.Tensor([]))): named_parameters-like dictionary containing list of importances for each parameter
         """
+        if imp_type == "perturb":
+            return self.calc_importance_perturb(dataloader)
+        
         # criterion = nn.CrossEntropyLoss()
         self.feature_in = []
         self.feature_out = []
@@ -175,16 +178,40 @@ class ParameterPerturber:
             self.feature_in = []
             self.feature_out = []
 
-        # print(len(self.feature_out))
-        # breakpoint()
-
         if imp_type == "freq" or imp_type == "abs":
             importance = [x / (row * D_num) for x in total_cnt_list]
         else:
             importance = [math.sqrt(x / (row * D_num)) for x in total_cnt_list]
         # print(len(importance))      # stands for the total neuron number = 768 * 6 = 4608
         return importance
+    
+    def calc_importance_perturb(self, dataloader: DataLoader) -> List:
+        importance = [0] * self.total_neuron_number
 
+        dataloader = tqdm(dataloader)
+        dataloader.set_description("Calculating importance...")
+        
+        with torch.no_grad():
+            for batch in dataloader:
+                b = {k: v.to(self.device) for k, v in batch.items()}     # a dictionary of tensors
+                origin_loss = self.model(**b).loss.item()
+
+                idx = 0
+                for layer_id in range(self.layers):
+                    for neuron_id in range(self.neuron_number_per_layer):
+                        for j in range(self.weight_shape[0]):
+                            self.module_list[layer_id].weight.data[j][neuron_id] = -self.module_list[layer_id].weight.data[j][neuron_id]
+                        # module.bias[neuron_id].zero_()
+                        importance[idx] += self.model(**b).loss.item() - origin_loss
+                        idx += 1
+
+                        for j in range(self.weight_shape[0]):
+                            self.module_list[layer_id].weight.data[j][neuron_id] = -self.module_list[layer_id].weight.data[j][neuron_id]
+
+                print(idx)
+
+        return importance
+        
     def modify_neuron(
         self,
         score: list,
