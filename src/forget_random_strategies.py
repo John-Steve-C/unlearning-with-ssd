@@ -389,14 +389,10 @@ def imp_pruning(
     pdr.freeze_neurons()
     model = model.eval()
     
-    if kwargs["forget_type"] == "perturb":
-        pdr.remove_hooks()
-        retain_importances = get_importance(kwargs["retain_importances_pkl"], pdr, retain_train_dl, kwargs["forget_type"])
-        forget_importances = get_importance(kwargs["forget_importances_pkl"], pdr, forget_train_dl, kwargs["forget_type"])
-    else:
-        retain_importances = get_importance(kwargs["retain_importances_pkl"], pdr, retain_train_dl, kwargs["forget_type"])
-        forget_importances = get_importance( kwargs["forget_importances_pkl"], pdr, forget_train_dl, kwargs["forget_type"])
-        pdr.remove_hooks()
+    retain_importances = get_importance(kwargs["retain_importances_pkl"], pdr, retain_train_dl, kwargs["forget_type"])
+    forget_importances = get_importance(kwargs["forget_importances_pkl"], pdr, forget_train_dl, kwargs["forget_type"])
+    
+    pdr.remove_hooks()
 
     score = [x / (y + 0.01) for x, y in zip(forget_importances, retain_importances)]    
 

@@ -113,6 +113,7 @@ class ParameterPerturber:
         importance (dict(str, torch.Tensor([]))): named_parameters-like dictionary containing list of importances for each parameter
         """
         if imp_type == "perturb":
+            self.remove_hooks()
             return self.calc_importance_perturb(dataloader)
         
         # criterion = nn.CrossEntropyLoss()
