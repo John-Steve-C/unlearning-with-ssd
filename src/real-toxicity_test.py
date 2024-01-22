@@ -109,6 +109,10 @@ parser.add_argument(
     "-modify_method", type=str, default="zero", help="reverse for reverse gradient"
 )
 
+parser.add_argument(
+    "-load_from_file", type=bool, default=False, help="load importances from file"
+)
+
 args = parser.parse_args()
 
 # ---------------------------------------- Set seeds
@@ -250,7 +254,8 @@ kwargs = {
     "retain_importances_pkl": args.retain_importances_pkl,
     "forget_importances_pkl": args.forget_importances_pkl,
     "neuron_name": args.neuron_name,
-    "modify_method": args.modify_method
+    "modify_method": args.modify_method,
+    "load_from_file": args.load_from_file,
 }
 
 pure_model_name = args.origin_model.split("/")[-1]
