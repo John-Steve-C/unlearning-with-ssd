@@ -72,12 +72,13 @@ class ParameterPerturber:
             for batch in dataloader:
                 b = {k: v.to(self.device) for k, v in batch.items()}
                 loss = self.model(**b).loss
+                loss.requires_grad = True
                 self.opt.zero_grad()
                 loss.backward()
 
                 idx = 0
                 for (name, p) in self.model.named_parameters():
-                    if p.grad is None:
+                    if p.grad is not None:
                         importance[idx] += p.grad.data.clone().pow(2)
                         idx += 1
 
