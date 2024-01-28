@@ -45,7 +45,6 @@ CUDA_VISIBLE_DEVICES=$DEVICE python3 real-toxicity_test.py -origin_model $origin
     -method imp_pruning \
     -forget_type perturb \
     -modify_method zero \
-    -use_sample \
     -forget_importances_pkl imp_forget \
     -retain_importances_pkl imp_retain
 
