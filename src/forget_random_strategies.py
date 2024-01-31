@@ -503,8 +503,8 @@ def mixture_pruning(
     pdr_2 = imp.ParameterPerturber(model, optimizer, device, param_list)
     # pdr.freeze_neurons()
     
-    retain_importances = get_importance(kwargs["retain_importances_pkl"], pdr_2, retain_train_dl, kwargs["forget_type"], load_from_file=False)
-    forget_importances = get_importance(kwargs["forget_importances_pkl"], pdr_2, forget_train_dl, kwargs["forget_type"], load_from_file=False)
+    retain_importances = get_importance('mixture_imp_retain', pdr_2, retain_train_dl, kwargs["forget_type"], load_from_file=False)
+    forget_importances = get_importance('mixture_imp_forget', pdr_2, forget_train_dl, kwargs["forget_type"], load_from_file=False)
     
     pdr_2.remove_hooks()
 
