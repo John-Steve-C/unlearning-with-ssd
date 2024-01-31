@@ -50,14 +50,11 @@ class ParameterPerturber:
         model,
         opt,
         device="cuda" if torch.cuda.is_available() else "cpu",
-        parameters=None,
-        neuron_name: str = "mlp.c_proj",
+        param_name_list=['transformer.h.0.mlp.c_proj', 'transformer.h.1.mlp.c_proj', 'transformer.h.2.mlp.c_proj', 'transformer.h.3.mlp.c_proj', 'transformer.h.4.mlp.c_proj', 'transformer.h.5.mlp.c_proj'],
     ):
         self.model = model
         self.opt = opt
         self.device = device
-        self.alpha = None
-        self.xmin = None
 
         # hook feature outputs
         # store the outputs will cost CUDA out of memory?
@@ -70,27 +67,28 @@ class ParameterPerturber:
         def hook(module, fea_in, fea_out):
             # print("hooker working")
             # self.module_name.append(module.__class__)
-            self.feature_in.append(fea_in)
+            # self.feature_in.append(fea_in)
             self.feature_out.append(fea_out)
             # print(fea_in[0].shape)
             # print(fea_out.shape)
             return None
 
-        self.neuron_name = neuron_name
-        # neuron = "mlp.dropout"
-        # neuron = "attn.c_proj"
-        layers = 0
-        for (name, module) in self.model.named_modules():
-            if neuron_name in name: #and module.__class__ == transformers.pytorch_utils.Conv1D:
-                layers += 1
-                self.weight_shape = module.weight.shape
-                # print(module)
-                self.module_list.append(module)
-                self.hooks.append(module.register_forward_hook(hook=hook))
+        self.param_name_list = param_name_list
+        self.total_neuron_number = 0
+        self.neuron_number_per_layer = []
+        self.channels = 0
 
-        self.layers = layers
-        self.neuron_number_per_layer = self.weight_shape[1]
-        self.total_neuron_number = layers * self.weight_shape[1]
+        for item in self.model.named_modules():
+            name = item[0]
+            module = item[1]
+            if name in self.param_name_list: #and module.__class__ == transformers.pytorch_utils.Conv1D:
+                print(module.weight.shape)
+                print(name)
+                self.total_neuron_number += module.weight.shape[1]
+                self.neuron_number_per_layer.append(module.weight.shape[1])
+                # print(module)
+                self.module_list.append(item)
+                self.hooks.append(module.register_forward_hook(hook=hook))
 
         # print("layers: ", layers)
         # print("weight shape: ", self.weight_shape)
@@ -142,32 +140,26 @@ class ParameterPerturber:
             # print(len(dataloader))
             # breakpoint()
 
-            row = self.feature_out[0][0].shape[0]   # channels=512
-            col = self.feature_out[0][0].shape[1]   # neurons=768=self.neurons_number_per_layer
+            self.channels = self.feature_out[0][0].shape[0]   # channels=512
+            # col = self.feature_out[0][0].shape[1]   # neurons=768=self.neurons_number_per_layer
             # print(self.feature_out[0].device)
-            # print(row, col)
-            f = torch.stack(self.feature_out, dim=0)    # 6 * batch_size * 512 * 768
+            # print(channel, col)
+            # f = torch.stack(self.feature_out, dim=0)    # 6 * batch_size * 512 * 768
+            # f = f.permute(0, 3, 1, 2)   # 6 * 768 * batch_size * 512
+            
+            f = torch.cat(self.feature_out, dim=2)         # batch_size * 512 * neurons
             # print(f.shape)
-            f = f.permute(0, 3, 1, 2)   # 6 * 768 * batch_size * 512
-            for i in range(self.layers):                      # layers
-                for j in range(col):            # neurons
-                    if imp_type == 'freq':
-                        total_cnt_list[i * col + j] += torch.sum(torch.gt(f[i][j], 0))
-                    elif imp_type == 'abs':
-                        total_cnt_list[i * col + j] += torch.sum(torch.abs(f[i][j]))
-                    elif imp_type == 'rms':
-                        total_cnt_list[i * col + j] += torch.sum(torch.square(f[i][j]))
-                    else:   # imp_type == "std"
-                        total_cnt_list[i * col + j] += torch.sum(torch.square(f[i][j] - torch.mean(f[i][j])))
-
-            # for num in range(batch_size):    # each data
-            #     for i in range(6):                      # layers
-            #         for j in range(768):                # neurons
-            #             total_cnt = 0
-            #             for k in range(512):            # channels
-            #                 if self.feature_out[i][num][k][j] > 0:
-            #                     total_cnt += 1
-            #             total_cnt_list[i * 768 + j] += total_cnt  
+            assert f.shape[2] == self.total_neuron_number
+            f = f.permute(2, 0, 1)  # neurons * batch_size * 512
+            for i in range(self.total_neuron_number):                  # neurons
+                if imp_type == 'freq':
+                    total_cnt_list[i] += torch.sum(torch.gt(f[i], 0))
+                elif imp_type == 'abs':
+                    total_cnt_list[i] += torch.sum(torch.abs(f[i]))
+                elif imp_type == 'rms':
+                    total_cnt_list[i] += torch.sum(torch.square(f[i]))
+                else:   # imp_type == "std"
+                    total_cnt_list[i] += torch.sum(torch.square(f[i] - torch.mean(f[i])))
 
             # del mask
             del f
@@ -180,10 +172,10 @@ class ParameterPerturber:
             self.feature_out = []
 
         if imp_type == "freq" or imp_type == "abs":
-            importance = [x / (row * D_num) for x in total_cnt_list]
+            importance = [x / (self.channels * D_num) for x in total_cnt_list]
         else:
-            importance = [math.sqrt(x / (row * D_num)) for x in total_cnt_list]
-        # print(len(importance))      # stands for the total neuron number = 768 * 6 = 4608
+            importance = [math.sqrt(x / (self.channels * D_num)) for x in total_cnt_list]
+        # print("total neuron number: ", len(importance))      # stands for the total neuron number
         return importance
     
     def calc_importance_perturb(self, dataloader: DataLoader) -> List:
@@ -201,13 +193,13 @@ class ParameterPerturber:
                 for layer_id in range(self.layers):
                     for neuron_id in range(self.neuron_number_per_layer):
                         for j in range(self.weight_shape[0]):
-                            self.module_list[layer_id].weight.data[j][neuron_id] = -self.module_list[layer_id].weight.data[j][neuron_id]
+                            self.module_list[layer_id][1].weight.data[j][neuron_id] = -self.module_list[layer_id][1].weight.data[j][neuron_id]
                         # module.bias[neuron_id].zero_()
                         importance[idx] += self.model(**b).loss.item() - origin_loss
                         idx += 1
 
                         for j in range(self.weight_shape[0]):
-                            self.module_list[layer_id].weight.data[j][neuron_id] = -self.module_list[layer_id].weight.data[j][neuron_id]
+                            self.module_list[layer_id][1].weight.data[j][neuron_id] = -self.module_list[layer_id][1].weight.data[j][neuron_id]
 
                 print(idx)
 
@@ -233,16 +225,15 @@ class ParameterPerturber:
         for i in tqdm(range(pruning_number)):
             del_pair = score_pair[i]
             id = del_pair[1]
-            neuron_id = id % self.neuron_number_per_layer
-            layer_id = id // self.neuron_number_per_layer
+            layer_id, neuron_id = self.get_pos(id)
             with torch.no_grad():
                 # for j in range(self.weight_shape[0]):
                 #     self.model.transformer.h[layer_id].mlp.c_proj.weight[j][neuron_id].zero_()
                 # self.model.transformer.h[layer_id].mlp.c_proj.bias[neuron_id].zero_()
-                for j in range(self.weight_shape[0]):
-                    self.module_list[layer_id].weight[j][neuron_id].zero_()
+                for j in range(self.channels):
+                    self.module_list[layer_id][1].weight[j][neuron_id].zero_()
                 try:
-                    self.module_list[layer_id].bias[neuron_id].zero_()
+                    self.module_list[layer_id][1].bias[neuron_id].zero_()
                 except:
                     continue
                 
@@ -251,6 +242,20 @@ class ParameterPerturber:
                 # self.model.transformer.h[layer_id].mlp.c_proj.bias.requires_grad = False
 
         return None
+
+    def get_pos(
+        self,
+        id
+    ):
+        # neuron_id = id % self.neuron_number_per_layer
+        # layer_id = id // self.neuron_number_per_layer
+        idx = 0
+        while id >= self.neuron_number_per_layer[idx]:
+            id -= self.neuron_number_per_layer[idx]
+            idx += 1
+        layer_id = idx
+        neuron_id = id
+        return layer_id, neuron_id
 
     def get_mask(
         self,

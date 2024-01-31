@@ -288,14 +288,16 @@ def reverse_part_fit(
         # history.append(result)
     # return history
 
-def get_importance(pkl_name, pdr, dataloader, forget_type, load_from_file):
+def get_importance(pkl_name, pdr, dataloader, forget_type, load_from_file=True):
 
-    if load_from_file and os.path.exists(pkl_name):
+    if load_from_file and os.path.exists(pkl_name) and pkl_name != 'None':
         with open(pkl_name, "rb") as file:
             imp = pickle.load(file)
+            print("load importance from file, length = ", len(imp))
     else:
         with torch.no_grad():
             imp = pdr.calc_importance(dataloader, forget_type)
+            print("calculate importance, length = ", len(imp))
         with open(pkl_name, "wb") as file:
             pickle.dump(imp, file)
     
