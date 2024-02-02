@@ -147,8 +147,10 @@ class ParameterPerturber:
             # f = torch.stack(self.feature_out, dim=0)    # 6 * batch_size * 512 * 768
             # f = f.permute(0, 3, 1, 2)   # 6 * 768 * batch_size * 512
             
+            # for item in self.feature_out:
+            #     print(item.shape)
             f = torch.cat(self.feature_out, dim=2)         # batch_size * 512 * neurons
-            # print(f.shape)
+            # print(f.shape, '\n')
             assert f.shape[2] == self.total_neuron_number
             f = f.permute(2, 0, 1)  # neurons * batch_size * 512
             for i in range(self.total_neuron_number):                  # neurons
@@ -209,6 +211,7 @@ class ParameterPerturber:
         self,
         score: list,
         pruning_percent: float,
+        param_list = None,
     ) -> None:
         """
         change neuron weights by score
@@ -230,13 +233,22 @@ class ParameterPerturber:
                 # for j in range(self.weight_shape[0]):
                 #     self.model.transformer.h[layer_id].mlp.c_proj.weight[j][neuron_id].zero_()
                 # self.model.transformer.h[layer_id].mlp.c_proj.bias[neuron_id].zero_()
-                for j in range(self.channels):
-                    self.module_list[layer_id][1].weight[j][neuron_id].zero_()
-                try:
-                    self.module_list[layer_id][1].bias[neuron_id].zero_()
-                except:
-                    continue
                 
+                if param_list is not None:
+                    name = self.module_list[layer_id][0]
+                    if name + '.weight' in param_list:
+                        for j in range(self.channels):
+                            self.module_list[layer_id][1].weight[j][neuron_id].zero_()
+                    if name + '.bias' in param_list:
+                        self.module_list[layer_id][1].bias[neuron_id].zero_()
+                else:
+                    for j in range(self.channels):
+                        self.module_list[layer_id][1].weight[j][neuron_id].zero_()
+                    try:
+                        self.module_list[layer_id][1].bias[neuron_id].zero_()
+                    except:
+                        continue
+                    
                 # we need to prevent the gradient of the pruned neuron from being updated
                 # self.model.transformer.h[layer_id].mlp.c_proj.weight.requires_grad = False
                 # self.model.transformer.h[layer_id].mlp.c_proj.bias.requires_grad = False

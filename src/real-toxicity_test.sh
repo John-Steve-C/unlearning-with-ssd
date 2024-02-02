@@ -41,15 +41,26 @@ model_name_or_path=./models/distilgpt2_finetune
 # CUDA_VISIBLE_DEVICES=$DEVICE python3 real-toxicity_test.py -origin_model $origin_model -dataset $dataset -classes $n_classes -method pdr_tuning -forget_perc $forget_perc -model_name_or_path $model_name_or_path -seed $seed -b $batch_size
 # # reset_cuda
 
-CUDA_VISIBLE_DEVICES=$DEVICE python3 real-toxicity_test.py -origin_model $origin_model -dataset $dataset -classes $n_classes -forget_perc $forget_perc -model_name_or_path $model_name_or_path -seed $seed -b $batch_size \
-    -method imp_pruning \
-    -forget_type perturb \
-    -modify_method zero \
-    -use_sample \
-    -forget_importances_pkl imp_forget \
-    -retain_importances_pkl imp_retain
+# CUDA_VISIBLE_DEVICES=$DEVICE python3 real-toxicity_test.py -origin_model $origin_model -dataset $dataset -classes $n_classes -forget_perc $forget_perc -model_name_or_path $model_name_or_path -seed $seed -b $batch_size \
+#     -method imp_pruning \
+#     -forget_type perturb \
+#     -modify_method zero \
+#     -use_sample \
+#     -forget_importances_pkl imp_forget \
+#     -retain_importances_pkl imp_retain
 
-reset_cuda
+# reset_cuda
+
+CUDA_VISIBLE_DEVICES=$DEVICE python3 real-toxicity_test.py -origin_model $origin_model -dataset $dataset -classes $n_classes -forget_perc $forget_perc -model_name_or_path $model_name_or_path -seed $seed -b $batch_size -pruning_percent $pruning_percent \
+    -method mixture_pruning \
+    -forget_type abs \
+    -modify_method zero \
+    -pruning_percent 0.5 \
+    -forget_importances_pkl imp_forget_perturb_large \
+    -retain_importances_pkl imp_retain_perturb_large \
+    -load_from_file True \
+    > info_perturb.txt
+
 
 # CUDA_VISIBLE_DEVICES=$DEVICE python3 real-toxicity_test.py -origin_model $origin_model -dataset $dataset -classes $n_classes -method imp_pruning_large -forget_perc $forget_perc -model_name_or_path $model_name_or_path -seed $seed -b $batch_size -use_sample
 # reset_cuda

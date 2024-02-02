@@ -494,11 +494,14 @@ def mixture_pruning(
     score_1 = [x / (y + 0.01) for x, y in zip(forget_importances, retain_importances)]
     param_list = pdr_1.get_important_param(score_1, pruning_percent=0.1)
     
-    print(param_list)
+    orig_param_list = list(param_list)            # deep copy
+    print('origin: ', orig_param_list)
     for i in range(len(param_list)):
         param_list[i], _, _ = param_list[i].rpartition('.')   # remove the last '.'
     param_list = list(dict.fromkeys(param_list))  # remove duplicate
-    print(param_list)
+    print('now: ', param_list)
+
+    # param_list = ['transformer.wte', 'transformer.h.0.attn.c_attn', 'transformer.h.0.attn.c_proj']
 
     pdr_2 = imp.ParameterPerturber(model, optimizer, device, param_list)
     # pdr.freeze_neurons()
@@ -512,7 +515,7 @@ def mixture_pruning(
 
     if modify_method == 'zero': 
         # modify method 1
-        pdr_2.modify_neuron(score, pruning_percent=kwargs["pruning_percent"])
+        pdr_2.modify_neuron(score, pruning_percent=kwargs["pruning_percent"], param_list=orig_param_list)
     elif modify_method == 'reverse':
         # modify method 2 : reverse grad
         mask = pdr_2.get_mask(score, pruning_percent=kwargs["pruning_percent"])
