@@ -21,6 +21,8 @@ from utils import *
 import ssd as ssd
 import myimp as imp
 import myimp_large as imp_large
+import myimp_new as imp_new
+import myimp_perturb as imp_perturb
 import conf
 import math
 
@@ -465,6 +467,73 @@ def imp_pruning_large(
         device,
     )
 
+# def mixture_pruning(
+#     model,
+#     unlearning_teacher,
+#     retain_train_dl,
+#     retain_valid_dl,
+#     forget_train_dl,
+#     forget_valid_dl,
+#     valid_dl,
+#     dampening_constant,
+#     selection_weighting,
+#     full_train_dl,
+#     device,
+#     **kwargs,
+# ):
+#     # load the trained model
+#     optimizer = torch.optim.SGD(model.parameters(), lr=1e-2)
+
+#     print(kwargs)
+#     modify_method = kwargs["modify_method"]
+
+#     pdr_1 = imp_large.ParameterPerturber(model, optimizer, device)
+#     model = model.eval()
+        
+#     retain_importances = get_importance(kwargs["retain_importances_pkl"], pdr_1, retain_train_dl, 'perturb', kwargs["load_from_file"])
+#     forget_importances = get_importance(kwargs["forget_importances_pkl"], pdr_1, forget_train_dl, 'perturb', kwargs["load_from_file"])
+
+#     score_1 = [x / (y + 0.01) for x, y in zip(forget_importances, retain_importances)]
+#     param_list = pdr_1.get_important_param(score_1, pruning_percent=0.1)
+    
+#     orig_param_list = list(param_list)            # deep copy
+#     print('origin: ', orig_param_list)
+#     for i in range(len(param_list)):
+#         param_list[i], _, _ = param_list[i].rpartition('.')   # remove the last '.'
+#     param_list = list(dict.fromkeys(param_list))  # remove duplicate
+#     print('now: ', param_list)
+
+#     # param_list = ['transformer.wte', 'transformer.h.0.attn.c_attn', 'transformer.h.0.attn.c_proj']
+
+#     pdr_2 = imp.ParameterPerturber(model, optimizer, device, param_list)
+#     # pdr.freeze_neurons()
+    
+#     retain_importances = get_importance('mixture_imp_retain', pdr_2, retain_train_dl, kwargs["forget_type"], load_from_file=False)
+#     forget_importances = get_importance('mixture_imp_forget', pdr_2, forget_train_dl, kwargs["forget_type"], load_from_file=False)
+    
+#     pdr_2.remove_hooks()
+
+#     score = [x / (y + 0.01) for x, y in zip(forget_importances, retain_importances)]    
+
+#     if modify_method == 'zero': 
+#         # modify method 1
+#         pdr_2.modify_neuron(score, pruning_percent=kwargs["pruning_percent"], param_list=orig_param_list)
+#     elif modify_method == 'reverse':
+#         # modify method 2 : reverse grad
+#         mask = pdr_2.get_mask(score, pruning_percent=kwargs["pruning_percent"])
+#         reverse_part_fit(5, mask, model, forget_train_dl, forget_valid_dl, device)
+
+#     return get_metric_scores(
+#         model,
+#         unlearning_teacher,
+#         retain_train_dl,
+#         retain_valid_dl,
+#         forget_train_dl,
+#         forget_valid_dl,
+#         valid_dl,
+#         device,
+#     )
+
 def mixture_pruning(
     model,
     unlearning_teacher,
@@ -485,41 +554,43 @@ def mixture_pruning(
     print(kwargs)
     modify_method = kwargs["modify_method"]
 
-    pdr_1 = imp_large.ParameterPerturber(model, optimizer, device)
+    pdr_1 = imp_new.ParameterPerturber(model, optimizer, device)
     model = model.eval()
         
-    retain_importances = get_importance(kwargs["retain_importances_pkl"], pdr_1, retain_train_dl, 'perturb', kwargs["load_from_file"])
-    forget_importances = get_importance(kwargs["forget_importances_pkl"], pdr_1, forget_train_dl, 'perturb', kwargs["load_from_file"])
+    retain_importances = get_importance(kwargs["retain_importances_pkl"], pdr_1, retain_train_dl, kwargs["forget_type"], kwargs["load_from_file"])
+    forget_importances = get_importance(kwargs["forget_importances_pkl"], pdr_1, forget_train_dl, kwargs["forget_type"], kwargs["load_from_file"])
 
     score_1 = [x / (y + 0.01) for x, y in zip(forget_importances, retain_importances)]
-    param_list = pdr_1.get_important_param(score_1, pruning_percent=0.1)
+    param_list = pdr_1.get_important_param(score_1, pruning_percent=kwargs["pruning_percent"])
     
-    orig_param_list = list(param_list)            # deep copy
-    print('origin: ', orig_param_list)
-    for i in range(len(param_list)):
-        param_list[i], _, _ = param_list[i].rpartition('.')   # remove the last '.'
-    param_list = list(dict.fromkeys(param_list))  # remove duplicate
-    print('now: ', param_list)
+    # score_pair = [(s, id) for id, s in enumerate(score_1)]
+    # print('before ', score_pair)
+    # score_pair.sort(key=lambda x: x[0], reverse=True)   # true means descending
+    # print('after ', score_pair)
 
-    # param_list = ['transformer.wte', 'transformer.h.0.attn.c_attn', 'transformer.h.0.attn.c_proj']
+    pdr_1.remove_hooks()
 
-    pdr_2 = imp.ParameterPerturber(model, optimizer, device, param_list)
+    # orig_param_list = list(param_list)            # deep copy
+    print('first filter important parameters: ', param_list)
+
+    pdr_2 = imp_perturb.ParameterPerturber(model, optimizer, device, param_list)
     # pdr.freeze_neurons()
     
-    retain_importances = get_importance('mixture_imp_retain', pdr_2, retain_train_dl, kwargs["forget_type"], load_from_file=False)
-    forget_importances = get_importance('mixture_imp_forget', pdr_2, forget_train_dl, kwargs["forget_type"], load_from_file=False)
+    retain_importances = get_importance('mixture_imp_retain', pdr_2, retain_train_dl, 'perturb', kwargs["load_from_file"])
+    forget_importances = get_importance('mixture_imp_forget', pdr_2, forget_train_dl, 'perturb', kwargs["load_from_file"])
     
-    pdr_2.remove_hooks()
+    # print('retain_importances: ', retain_importances)
+    # print('forget_importances: ', forget_importances)
 
     score = [x / (y + 0.01) for x, y in zip(forget_importances, retain_importances)]    
 
-    if modify_method == 'zero': 
-        # modify method 1
-        pdr_2.modify_neuron(score, pruning_percent=kwargs["pruning_percent"], param_list=orig_param_list)
-    elif modify_method == 'reverse':
-        # modify method 2 : reverse grad
-        mask = pdr_2.get_mask(score, pruning_percent=kwargs["pruning_percent"])
-        reverse_part_fit(5, mask, model, forget_train_dl, forget_valid_dl, device)
+    # score_pair = [(s, id) for id, s in enumerate(score)]
+    # print('before ', score_pair)
+    # score_pair.sort(key=lambda x: x[0], reverse=True)   # true means descending
+    # print('after ', score_pair)
+
+    print('modify at last: ')
+    pdr_2.modify_neuron(score, pruning_percent=kwargs["pruning_percent_2"])
 
     return get_metric_scores(
         model,

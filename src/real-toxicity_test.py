@@ -90,6 +90,7 @@ parser.add_argument(
 )
 parser.add_argument("-seed", type=int, default=0, help="seed for runs")
 parser.add_argument("-pruning_percent", type=float, default=0.5, help="percentage of weights to prune")
+parser.add_argument("-pruning_percent_2", type=float, default=0.5, help="percentage of weights to prune")
 parser.add_argument(
     "-forget_type", type=str, default="freq", help="forget type: freq/abs/rms/std"
 )
@@ -111,7 +112,7 @@ parser.add_argument(
 )
 
 parser.add_argument(
-    "-load_from_file", type=bool, default=False, help="load importances from file"
+    "-load_from_file", action="store_true", default=False, help="load importances from file"
 )
 
 args = parser.parse_args()
@@ -257,6 +258,7 @@ kwargs = {
     "neuron_name": args.neuron_name,
     "modify_method": args.modify_method,
     "load_from_file": args.load_from_file,
+    "pruning_percent_2": args.pruning_percent_2,
 }
 
 pure_model_name = args.origin_model.split("/")[-1]

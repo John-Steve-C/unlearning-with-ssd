@@ -14,15 +14,16 @@ seed=42
 ################ RANDOM FORGETTING ##################
 #############################################################
 # export WANDB_RUN_NAME="unlearn-toxigen-distilgpt2"
-export DISTILGPT2_PATH=./models/distilgpt2
+# export DISTILGPT2_PATH=./models/distilgpt2
 export CLASSIFIER_PATH=./models/roberta_toxicity_classifier
 
 
 forget_perc=0.1 # forgetting propotion
 dataset=allenai/real-toxicity-prompts
 origin_model=distilgpt2   #princeton-nlp/Sheared-LLaMA-1.3B #
-batch_size=2
+batch_size=32
 n_classes=2
+pruning_percent=0.5
 
 # TODO: need to modify this!
 # model_name_or_path=./models/
@@ -41,26 +42,98 @@ model_name_or_path=./models/distilgpt2_finetune
 # CUDA_VISIBLE_DEVICES=$DEVICE python3 real-toxicity_test.py -origin_model $origin_model -dataset $dataset -classes $n_classes -method pdr_tuning -forget_perc $forget_perc -model_name_or_path $model_name_or_path -seed $seed -b $batch_size
 # # reset_cuda
 
-# CUDA_VISIBLE_DEVICES=$DEVICE python3 real-toxicity_test.py -origin_model $origin_model -dataset $dataset -classes $n_classes -forget_perc $forget_perc -model_name_or_path $model_name_or_path -seed $seed -b $batch_size \
-#     -method imp_pruning \
+# origin = abs + zero
+
+# test baseline
+
+# CUDA_VISIBLE_DEVICES=$DEVICE python3 real-toxicity_test.py -origin_model $origin_model -dataset $dataset -classes $n_classes -forget_perc $forget_perc -model_name_or_path ./models/distilgpt2_baseline -seed $seed -b $batch_size -pruning_percent $pruning_percent \
+#     -method finetune \
+#     -forget_type abs \
+#     -modify_method zero \
+#     -forget_importances_pkl None1 \
+#     -retain_importances_pkl None2 \
+#     > info_zero.txt
+    # -forget_importances_pkl imp_forget_baseline \
+    # -retain_importances_pkl imp_retain_baseline \
+
+# reset_cuda
+
+# CUDA_VISIBLE_DEVICES=$DEVICE python3 real-toxicity_test.py -origin_model $origin_model -dataset $dataset -classes $n_classes -forget_perc $forget_perc -model_name_or_path $model_name_or_path -seed $seed -b $batch_size -pruning_percent $pruning_percent \
+#     -method imp_pruning_large \
 #     -forget_type perturb \
 #     -modify_method zero \
+#     -load_from_file False \
 #     -use_sample \
-#     -forget_importances_pkl imp_forget \
-#     -retain_importances_pkl imp_retain
+#     > info_zero.txt
+
+# reset_cuda
+
+# CUDA_VISIBLE_DEVICES=$DEVICE python3 real-toxicity_test.py -origin_model $origin_model -dataset $dataset -classes $n_classes -forget_perc $forget_perc -model_name_or_path $model_name_or_path -seed $seed -b $batch_size -pruning_percent $pruning_percent \
+#     -method imp_pruning \
+#     -forget_type abs \
+#     -modify_method zero \
+#     -pruning_percent 0.5 \
+#     -forget_importances_pkl imp_forget_zero_tmp \
+#     -retain_importances_pkl imp_retain_zero_tmp \
+#     -load_from_file False \
+#     > info_zero.txt
 
 # reset_cuda
 
 CUDA_VISIBLE_DEVICES=$DEVICE python3 real-toxicity_test.py -origin_model $origin_model -dataset $dataset -classes $n_classes -forget_perc $forget_perc -model_name_or_path $model_name_or_path -seed $seed -b $batch_size -pruning_percent $pruning_percent \
     -method mixture_pruning \
-    -forget_type abs \
+    -forget_type std \
     -modify_method zero \
-    -pruning_percent 0.5 \
-    -forget_importances_pkl imp_forget_perturb_large \
-    -retain_importances_pkl imp_retain_perturb_large \
-    -load_from_file True \
-    > info_perturb.txt
+    -pruning_percent 0.2 \
+    -pruning_percent_2 0.5 \
+    -forget_importances_pkl imp_forget_tmp_std \
+    -retain_importances_pkl imp_retain_tmp_std \
 
+reset_cuda
+
+# CUDA_VISIBLE_DEVICES=$DEVICE python3 real-toxicity_test.py -origin_model $origin_model -dataset $dataset -classes $n_classes -forget_perc $forget_perc -model_name_or_path $model_name_or_path -seed $seed -b $batch_size -pruning_percent $pruning_percent \
+#     -method mixture_pruning \
+#     -forget_type abs \
+#     -modify_method zero \
+#     -pruning_percent 0.8 \
+#     -forget_importances_pkl imp_forget_perturb_large \
+#     -retain_importances_pkl imp_retain_perturb_large \
+#     -load_from_file True \
+#     > info_perturb_3.txt
+
+# reset_cuda
+
+# CUDA_VISIBLE_DEVICES=$DEVICE python3 real-toxicity_test.py -origin_model $origin_model -dataset $dataset -classes $n_classes -forget_perc $forget_perc -model_name_or_path $model_name_or_path -seed $seed -b $batch_size -pruning_percent $pruning_percent \
+#     -method imp_pruning \
+#     -forget_type perturb \
+#     -modify_method zero \
+#     -forget_importances_pkl imp_forget_perturb_small \
+#     -retain_importances_pkl imp_retain_perturb_small \
+#     > info_perturb_small.txt
+
+# reset_cuda
+
+# CUDA_VISIBLE_DEVICES=$DEVICE python3 real-toxicity_test.py -origin_model $origin_model -dataset $dataset -classes $n_classes -forget_perc $forget_perc -model_name_or_path $model_name_or_path -seed $seed -b $batch_size -pruning_percent $pruning_percent \
+#     -method imp_pruning_large \
+#     -forget_type grad \
+#     -modify_method zero \
+#     -forget_importances_pkl imp_forget_grad \
+#     -retain_importances_pkl imp_retain_grad \
+#     -load_from_file True \
+#     > info_grad.txt
+
+# reset_cuda
+
+# CUDA_VISIBLE_DEVICES=$DEVICE python3 real-toxicity_test.py -origin_model $origin_model -dataset $dataset -classes $n_classes -forget_perc $forget_perc -model_name_or_path $model_name_or_path -seed $seed -b $batch_size -pruning_percent $pruning_percent \
+#     -method imp_pruning_large \
+#     -forget_type grad \
+#     -modify_method reverse \
+#     -forget_importances_pkl imp_forget_grad \
+#     -retain_importances_pkl imp_retain_grad \
+#     -load_from_file True \
+#     > info_grad_reverse.txt
+
+# reset_cuda
 
 # CUDA_VISIBLE_DEVICES=$DEVICE python3 real-toxicity_test.py -origin_model $origin_model -dataset $dataset -classes $n_classes -method imp_pruning_large -forget_perc $forget_perc -model_name_or_path $model_name_or_path -seed $seed -b $batch_size -use_sample
 # reset_cuda
