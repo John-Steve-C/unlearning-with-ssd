@@ -220,9 +220,8 @@ print('total dataset size : ', len(trainset))
 print('forget train size : ', len(forget_train))
 print('retain train size : ', len(retain_train))
 
-# valid on non-toxic data
-# forget_valid = validset.filter(lambda example: example["continuation"]["toxicity"] is not None and example["continuation"]["toxicity"] > 0.5)
-# retain_valid = validset.filter(lambda example: example["continuation"]["toxicity"] is not None and example["continuation"]["toxicity"] <= 0.5)
+forget_valid = validset.filter(lambda example: example["continuation"]["toxicity"] is not None and example["continuation"]["toxicity"] > 0.5)
+retain_valid = validset.filter(lambda example: example["continuation"]["toxicity"] is None or example["continuation"]["toxicity"] <= 0.5)
 
 trainset = trainset.remove_columns(["prompt", "continuation"])
 validset = validset.remove_columns(["prompt", "continuation"])
@@ -237,8 +236,8 @@ validloader = DataLoader(validset, num_workers=4, batch_size=args.b, shuffle=Fal
 forget_train_dl = DataLoader(list(forget_train), batch_size=args.b, num_workers=8, pin_memory=True)
 retain_train_dl = DataLoader(list(retain_train), batch_size=args.b, num_workers=8, pin_memory=True)
 
-forget_valid_dl = forget_train_dl
-retain_valid_dl = retain_train_dl
+forget_valid_dl = DataLoader(list(forget_valid), batch_size=args.b, num_workers=8, pin_memory=True)
+retain_valid_dl = DataLoader(list(retain_valid), batch_size=args.b, num_workers=8, pin_memory=True)
 
 full_train_dl = DataLoader(
     ConcatDataset((retain_train_dl.dataset, forget_train_dl.dataset)),
