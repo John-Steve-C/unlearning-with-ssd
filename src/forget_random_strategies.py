@@ -8,6 +8,7 @@ import random
 import numpy as np
 from typing import Tuple, List
 from copy import deepcopy
+import copy
 
 import torch
 from torch.utils.data import DataLoader, ConcatDataset, dataset
@@ -381,14 +382,14 @@ def imp_pruning(
     **kwargs,
 ):
     # load the trained model
-    optimizer = torch.optim.SGD(model.parameters(), lr=1e-2)
+    optimizer = torch.optim.SGD(model.parameters(), lr=1e-5)
 
     print(kwargs)
     neuron_name = kwargs["neuron_name"]
     modify_method = kwargs["modify_method"]
 
     pdr = imp.ParameterPerturber(model, optimizer, device)
-    # pdr.freeze_neurons()
+    pdr.freeze_neurons()
     model = model.eval()
     
     retain_importances = get_importance(kwargs["retain_importances_pkl"], pdr, retain_train_dl, kwargs["forget_type"], kwargs["load_from_file"])
@@ -404,7 +405,7 @@ def imp_pruning(
     elif modify_method == 'reverse':
         # modify method 2 : reverse grad
         mask = pdr.get_mask(score, pruning_percent=kwargs["pruning_percent"])
-        reverse_part_fit(5, mask, model, forget_train_dl, forget_valid_dl, device)
+        reverse_part_fit(2, mask, model, forget_train_dl, forget_valid_dl, device)
 
     return get_metric_scores(
         model,
@@ -620,12 +621,72 @@ def reverse_gradient(
 ):
 
     # load the trained model
-    optimizer = torch.optim.SGD(model.parameters(), lr=1e-2)
+    # optimizer = torch.optim.SGD(model.parameters(), lr=1e-2)
 
     # pdr = imp.ParameterPerturber(model, optimizer, device)
 
     # pdr.freeze_neurons()
+
+    # ------------------------------------------------------------------------------
+
+    for (name, p) in model.named_parameters():
+        if 'mlp.c_proj' in name:
+            p.requires_grad = True
+        else:
+            p.requires_grad = False
     reverse_fit(5, model, forget_train_dl, forget_valid_dl, device)
+
+    # -----------------------------------------------------------------------------
+
+    return get_metric_scores(
+        model,
+        unlearning_teacher,
+        retain_train_dl,
+        retain_valid_dl,
+        forget_train_dl,
+        forget_valid_dl,
+        valid_dl,
+        device,
+    )
+
+# a more effect way to reverse grad
+def vector_negation(
+    model,
+    unlearning_teacher,
+    retain_train_dl,
+    retain_valid_dl,
+    forget_train_dl,
+    forget_valid_dl,
+    valid_dl,
+    dampening_constant,
+    selection_weighting,
+    full_train_dl,
+    device,
+    **kwargs,
+):
+
+    new_param = model.state_dict()
+    orig_param = copy.deepcopy(new_param)
+
+    # print("*1", orig_param)
+    # print("test on finetune model 1: ", evaluate(model, valid_dl, device))
+
+
+    _ = fit_one_cycle(
+        1, model, forget_train_dl, forget_valid_dl, lr=1e-4, device=device
+    )
+
+    print("test on finetune model: ", evaluate(model, valid_dl, device))
+    # print("*2", orig_param)
+    # print("*3", new_param)
+
+
+    for name in orig_param.keys():
+        orig_param[name] -= new_param[name] - orig_param[name]
+
+    # print("*4", orig_param)
+
+    model.load_state_dict(orig_param)
 
     torch.cuda.empty_cache()
 

@@ -205,7 +205,7 @@ def fit_one_cycle(
     return history
 
 def reverse_fit(
-    epochs, model, train_loader, val_loader, device, lr=0.01, milestones=None
+    epochs, model, train_loader, val_loader, device, lr=5e-4, milestones=None
 ):
     torch.cuda.empty_cache()
     history = []
@@ -250,7 +250,7 @@ def reverse_fit(
     # return history
 
 def reverse_part_fit(
-    epochs, mask, model, train_loader, val_loader, device, lr=0.01, milestones=None
+    epochs, mask, model, train_loader, val_loader, device, lr=5e-4, milestones=None
 ):
     torch.cuda.empty_cache()
     history = []

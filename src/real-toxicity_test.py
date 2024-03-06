@@ -79,6 +79,7 @@ parser.add_argument(
         "reverse_gradient",
         "imp_pruning_large",
         "mixture_pruning",
+        "vector_negation",
     ],
     help="select unlearning method from choice set",
 )
@@ -157,6 +158,10 @@ unlearning_teacher = None
 
 #------------------------- data preprocess
 
+def combine_text(example):
+    example["text"] = example["prompt"]["text"] + example["continuation"]["text"]
+    return example
+
 def convert_to_features(example_batch):
     input_encodings = tokenizer.batch_encode_plus(example_batch['text'], pad_to_max_length=True, max_length=512)
     target_encodings = tokenizer.batch_encode_plus(example_batch['text'], pad_to_max_length=True, max_length=512)
@@ -168,22 +173,34 @@ def convert_to_features(example_batch):
         
     return encodings
 
-def combine_text(example):
-    example["text"] = example["prompt"]["text"] # + example["continuation"]["text"]
+def combine_text_2(example):
+    example["text_1"] = example["prompt"]["text"]
+    example["text_2"] = example["continuation"]["text"]
     return example
 
+def convert_2(example_batch):
+    input_encodings = tokenizer.batch_encode_plus(example_batch['text_1'], pad_to_max_length=True, max_length=512)
+    target_encodings = tokenizer.batch_encode_plus(example_batch['text_2'], pad_to_max_length=True, max_length=512)
+
+    encodings = {
+        'input_ids': input_encodings['input_ids'],
+        'labels': target_encodings['input_ids']
+    }
+        
+    return encodings
 
 #trainset = load_dataset(args.dataset, split='train').shuffle(seed=42).select(range(2 * total_size))
 trainset = load_dataset(args.dataset, split='train')
 # validset = load_dataset(args.dataset, split='train').select(range(10000, 12000))
-validset = trainset
+validset = load_dataset(args.dataset, split='train')
 trainset = trainset.map(combine_text)
 trainset = trainset.map(convert_to_features, batched=True)
-validset = validset.map(combine_text)
-validset = validset.map(convert_to_features, batched=True)
+
+validset = validset.map(combine_text_2)
+validset = validset.map(convert_2, batched=True)
 
 trainset = trainset.remove_columns(["text", "filename", "begin", "end", "challenging"])
-validset = validset.remove_columns(["text", "filename", "begin", "end", "challenging"])
+validset = validset.remove_columns(["text_1", "text_2", "filename", "begin", "end", "challenging"])
 trainset.set_format('torch')
 validset.set_format('torch')
 
@@ -219,6 +236,7 @@ validloader = DataLoader(validset, num_workers=4, batch_size=args.b, shuffle=Fal
 # )
 forget_train_dl = DataLoader(list(forget_train), batch_size=args.b, num_workers=8, pin_memory=True)
 retain_train_dl = DataLoader(list(retain_train), batch_size=args.b, num_workers=8, pin_memory=True)
+
 forget_valid_dl = forget_train_dl
 retain_valid_dl = retain_train_dl
 
@@ -229,7 +247,7 @@ full_train_dl = DataLoader(
 print('actual total train size : ', len(full_train_dl.dataset))
 
 trainloader = full_train_dl
-validloader = full_train_dl
+# validloader = full_train_dl
 
 # --------------------------------------- parameters
 
