@@ -24,6 +24,7 @@ import myimp as imp
 import myimp_large as imp_large
 import myimp_new as imp_new
 import myimp_perturb as imp_perturb
+import myimp_mix as imp_mix
 import conf
 import math
 
@@ -131,9 +132,9 @@ def finetune(
     **kwargs,
 ):
     # in fact we do finetune on the retain dataset. Maybe we should finetune on full dataset?
-    # _ = fit_one_cycle(
-    #     5, model, retain_train_dl, retain_valid_dl, lr=0.02, device=device
-    # )
+    _ = fit_one_cycle(
+        1, model, retain_train_dl, retain_valid_dl, lr=1e-4, device=device
+    )
 
     return get_metric_scores(
         model,
@@ -353,6 +354,7 @@ def pdr_tuning(
     model = model.eval()
     
     sample_importances = pdr.calc_importance(forget_train_dl)
+    print(sample_importances)
     original_importances = pdr.calc_importance(full_train_dl)
     
     pdr.modify_weight(original_importances, sample_importances)
@@ -444,9 +446,12 @@ def imp_pruning_large(
     model = model.eval()
         
     retain_importances = get_importance(kwargs["retain_importances_pkl"], pdr, retain_train_dl, kwargs["forget_type"], kwargs["load_from_file"])
+    print("re, ", retain_importances)
     forget_importances = get_importance(kwargs["forget_importances_pkl"], pdr, forget_train_dl, kwargs["forget_type"], kwargs["load_from_file"])
+    print("ff, ", forget_importances)
 
     score = [x / (y + 0.01) for x, y in zip(forget_importances, retain_importances)]
+    print(score)
 
     if modify_method == 'zero': 
         # modify method 1
@@ -467,6 +472,8 @@ def imp_pruning_large(
         valid_dl,
         device,
     )
+
+## mixture pruning 1, perturb(large) + abs(small)...
 
 # def mixture_pruning(
 #     model,
@@ -535,6 +542,79 @@ def imp_pruning_large(
 #         device,
 #     )
 
+## mixture pruning 2, abs + perturb, both large granularity...
+
+# def mixture_pruning(
+#     model,
+#     unlearning_teacher,
+#     retain_train_dl,
+#     retain_valid_dl,
+#     forget_train_dl,
+#     forget_valid_dl,
+#     valid_dl,
+#     dampening_constant,
+#     selection_weighting,
+#     full_train_dl,
+#     device,
+#     **kwargs,
+# ):
+#     # load the trained model
+#     optimizer = torch.optim.SGD(model.parameters(), lr=1e-4)
+
+#     print(kwargs)
+#     modify_method = kwargs["modify_method"]
+
+#     pdr_1 = imp_new.ParameterPerturber(model, optimizer, device)
+#     model = model.eval()
+        
+#     retain_importances = get_importance(kwargs["retain_importances_pkl"], pdr_1, retain_train_dl, kwargs["forget_type"], kwargs["load_from_file"])
+#     forget_importances = get_importance(kwargs["forget_importances_pkl"], pdr_1, forget_train_dl, kwargs["forget_type"], kwargs["load_from_file"])
+
+#     score_1 = [x / (y + 0.01) for x, y in zip(forget_importances, retain_importances)]
+#     param_list = pdr_1.get_important_param(score_1, pruning_percent=kwargs["pruning_percent"])
+    
+#     # score_pair = [(s, id) for id, s in enumerate(score_1)]
+#     # print('before ', score_pair)
+#     # score_pair.sort(key=lambda x: x[0], reverse=True)   # true means descending
+#     # print('after ', score_pair)
+
+#     pdr_1.remove_hooks()
+
+#     # orig_param_list = list(param_list)            # deep copy
+#     print('first filter important parameters: ', param_list)
+
+#     pdr_2 = imp_perturb.ParameterPerturber(model, optimizer, device, param_list)
+#     # pdr.freeze_neurons()
+    
+#     retain_importances = get_importance('mixture_imp_retain', pdr_2, retain_train_dl, 'perturb', kwargs["load_from_file"])
+#     forget_importances = get_importance('mixture_imp_forget', pdr_2, forget_train_dl, 'perturb', kwargs["load_from_file"])
+    
+#     # print('retain_importances: ', retain_importances)
+#     # print('forget_importances: ', forget_importances)
+
+#     score = [x / (y + 0.01) for x, y in zip(forget_importances, retain_importances)]    
+
+#     # score_pair = [(s, id) for id, s in enumerate(score)]
+#     # print('before ', score_pair)
+#     # score_pair.sort(key=lambda x: x[0], reverse=True)   # true means descending
+#     # print('after ', score_pair)
+
+#     print('modify at last: ')
+#     pdr_2.modify_neuron(score, pruning_percent=kwargs["pruning_percent_2"])
+
+#     return get_metric_scores(
+#         model,
+#         unlearning_teacher,
+#         retain_train_dl,
+#         retain_valid_dl,
+#         forget_train_dl,
+#         forget_valid_dl,
+#         valid_dl,
+#         device,
+#     )
+
+## mixture pruning 3, combined importance
+
 def mixture_pruning(
     model,
     unlearning_teacher,
@@ -550,48 +630,56 @@ def mixture_pruning(
     **kwargs,
 ):
     # load the trained model
-    optimizer = torch.optim.SGD(model.parameters(), lr=1e-2)
+    optimizer = torch.optim.SGD(model.parameters(), lr=1e-4)
 
     print(kwargs)
     modify_method = kwargs["modify_method"]
 
-    pdr_1 = imp_new.ParameterPerturber(model, optimizer, device)
+    pdr = imp_mix.ParameterPerturber(model, optimizer, device)
     model = model.eval()
+
+    if kwargs["load_from_file"]:
+        with open(kwargs["forget_importances_pkl"], "rb") as file:
+            forget_imp1 = pickle.load(file)
+        with open(kwargs["forget_importances_pkl_2"], "rb") as file:
+            forget_imp2 = pickle.load(file)
         
-    retain_importances = get_importance(kwargs["retain_importances_pkl"], pdr_1, retain_train_dl, kwargs["forget_type"], kwargs["load_from_file"])
-    forget_importances = get_importance(kwargs["forget_importances_pkl"], pdr_1, forget_train_dl, kwargs["forget_type"], kwargs["load_from_file"])
+        print("load importance from file, length = ", len(forget_imp1), len(forget_imp2))
+    else:
+        forget_imp1, forget_imp2 = pdr.calc_importance(forget_train_dl, kwargs["forget_type"])
 
-    score_1 = [x / (y + 0.01) for x, y in zip(forget_importances, retain_importances)]
-    param_list = pdr_1.get_important_param(score_1, pruning_percent=kwargs["pruning_percent"])
+        with open(kwargs["forget_importances_pkl"], "wb") as file:
+            pickle.dump(forget_imp1, file)
+        with open(kwargs["forget_importances_pkl_2"], "wb") as file:
+            pickle.dump(forget_imp2, file)
+        print("calculate importance, length = ", len(forget_imp1), len(forget_imp2))
     
-    # score_pair = [(s, id) for id, s in enumerate(score_1)]
-    # print('before ', score_pair)
-    # score_pair.sort(key=lambda x: x[0], reverse=True)   # true means descending
-    # print('after ', score_pair)
+    forget_importances = [0] * len(forget_imp2)
 
-    pdr_1.remove_hooks()
+    # allocate abs importance to parameters
+    # make len(forget_imp_1) = len(forget_imp_2)
+    idx = 0
+    for i in range(len(forget_imp1)):
+        module_name = pdr.module_list[i][0]
+        while idx < len(forget_imp2) and module_name not in pdr.actual_param_list[idx]:
+            idx += 1
+        while idx < len(forget_imp2) and module_name in pdr.actual_param_list[idx]:
+            forget_importances[idx] += forget_imp1[i]
+            idx += 1
 
-    # orig_param_list = list(param_list)            # deep copy
-    print('first filter important parameters: ', param_list)
-
-    pdr_2 = imp_perturb.ParameterPerturber(model, optimizer, device, param_list)
-    # pdr.freeze_neurons()
-    
-    retain_importances = get_importance('mixture_imp_retain', pdr_2, retain_train_dl, 'perturb', kwargs["load_from_file"])
-    forget_importances = get_importance('mixture_imp_forget', pdr_2, forget_train_dl, 'perturb', kwargs["load_from_file"])
-    
-    # print('retain_importances: ', retain_importances)
     # print('forget_importances: ', forget_importances)
+    # print('forget_imp2: ', forget_imp2)
 
-    score = [x / (y + 0.01) for x, y in zip(forget_importances, retain_importances)]    
+    forget_importances = normalize_list(forget_importances)
+    forget_imp2 = normalize_list(forget_imp2)
 
-    # score_pair = [(s, id) for id, s in enumerate(score)]
-    # print('before ', score_pair)
-    # score_pair.sort(key=lambda x: x[0], reverse=True)   # true means descending
-    # print('after ', score_pair)
+    # print('forget_importances: ', forget_importances)
+    # print('forget_imp2: ', forget_imp2)
 
-    print('modify at last: ')
-    pdr_2.modify_neuron(score, pruning_percent=kwargs["pruning_percent_2"])
+    score = [(x + y) for x, y in zip(forget_importances, forget_imp2)]
+
+    pdr.remove_hooks()
+    pdr.modify_neuron(score, pruning_percent=kwargs["pruning_percent"])
 
     return get_metric_scores(
         model,

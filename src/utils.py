@@ -25,6 +25,11 @@ toxic_cls_model = RobertaForSequenceClassification.from_pretrained(CLASSIFIER_PA
 toxic_cls_model.to('cuda')
 toxic_cls_model.eval()
 
+def normalize_list(lst):
+    min_val = min(lst)
+    max_val = max(lst)
+    return [(x - min_val) / (max_val - min_val) for x in lst]
+
 @torch.no_grad()
 def evaluate(model, val_loader, device):
     model.eval()

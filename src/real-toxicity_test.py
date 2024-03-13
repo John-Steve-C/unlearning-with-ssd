@@ -101,6 +101,10 @@ parser.add_argument(
 )
 
 parser.add_argument(
+    "-forget_importances_pkl_2", type=str, default="None", help="list of importance"
+)
+
+parser.add_argument(
     "-retain_importances_pkl", type=str, default="None", help="list of importance"
 )
 
@@ -189,7 +193,7 @@ def convert_2(example_batch):
         
     return encodings
 
-#trainset = load_dataset(args.dataset, split='train').shuffle(seed=42).select(range(2 * total_size))
+# trainset = load_dataset(args.dataset, split='train').shuffle(seed=42).select(range(2 * total_size))
 trainset = load_dataset(args.dataset, split='train')
 # validset = load_dataset(args.dataset, split='train').select(range(10000, 12000))
 validset = load_dataset(args.dataset, split='train')
@@ -227,6 +231,8 @@ trainset = trainset.remove_columns(["prompt", "continuation"])
 validset = validset.remove_columns(["prompt", "continuation"])
 forget_train = forget_train.remove_columns(["prompt", "continuation"])
 retain_train = retain_train.remove_columns(["prompt", "continuation"])
+forget_valid = forget_valid.remove_columns(["prompt", "continuation"])
+retain_valid = retain_valid.remove_columns(["prompt", "continuation"])
 
 trainloader = DataLoader(trainset, num_workers=4, batch_size=args.b, shuffle=True)
 validloader = DataLoader(validset, num_workers=4, batch_size=args.b, shuffle=False)
@@ -272,6 +278,7 @@ kwargs = {
     "forget_type": args.forget_type,
     "retain_importances_pkl": args.retain_importances_pkl,
     "forget_importances_pkl": args.forget_importances_pkl,
+    "forget_importances_pkl_2": args.forget_importances_pkl_2,
     "neuron_name": args.neuron_name,
     "modify_method": args.modify_method,
     "load_from_file": args.load_from_file,
