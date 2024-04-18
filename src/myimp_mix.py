@@ -71,7 +71,7 @@ class ParameterPerturber:
         self.actual_param_list = []
         for name, _ in model.named_parameters():
             # filter embedding layer
-            if 'wte' in name or 'wpe' in name:
+            if 'wte' in name or 'wpe' in name or 'embed_tokens' in name:
                 continue
             self.actual_param_list.append(name)
 
@@ -84,7 +84,7 @@ class ParameterPerturber:
             module = item[1]
 
             # filter embedding layer
-            if 'wte' in name or 'wpe' in name:
+            if 'wte' in name or 'wpe' in name or 'embed_tokens' in name:
                 continue
 
             weight_name = name + '.weight'
@@ -138,10 +138,12 @@ class ParameterPerturber:
             gc.collect()
 
             # calculate grad importance
-            self.opt.zero_grad()
+            # self.opt.zero_grad()
+
             # loss.requires_grad = True
-            loss.backward()
-                        
+            # loss.backward()
+            self.model.backward(loss)
+
             with torch.no_grad():
                 idx = 0
                 for (name, p) in self.model.named_parameters():

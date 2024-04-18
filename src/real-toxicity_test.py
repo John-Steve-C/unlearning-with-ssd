@@ -35,6 +35,8 @@ from training_utils import *
 import transformers
 from transformers import AutoTokenizer, get_scheduler, AutoModelForCausalLM
 from datasets import load_dataset, concatenate_datasets
+from transformers.deepspeed import HfDeepSpeedConfig
+import deepspeed
 
 # from optimum.gptq import GPTQQuantizer, load_quantized_model
 
@@ -141,6 +143,9 @@ tokenizer = transformers.AutoTokenizer.from_pretrained(
 )
 tokenizer.pad_token = tokenizer.eos_token
 
+ds_config = './df_config.json'
+dshf = HfDeepSpeedConfig(ds_config)
+
 # quantizer = GPTQQuantizer(bits=4, dataset="c4") # block_name_to_quantize = "model.decoder.layers", model_seqlen = 2048
 model = AutoModelForCausalLM.from_pretrained(args.model_name_or_path)
 #print(model)
@@ -150,10 +155,18 @@ model = AutoModelForCausalLM.from_pretrained(args.model_name_or_path)
 # print(model.transformer.h[0].mlp.c_fc.weight.shape)
 # print(model.transformer.h[0].mlp.c_proj.weight.shape)
 # model = quantizer.quantize_model(model, tokenizer)
-model.to(device)
 
-# or we can call it origin model
-# unlearning_teacher = AutoModelForCausalLM.from_pretrained(args.origin_model)
+# model.to(device)
+
+engine = deepspeed.initialize(model=model,
+                              model_parameters=model.parameters(),
+                              config_params=ds_config)
+print(engine)
+model = engine[0] #.module
+print(model)
+
+# or we can call it retrain model
+# unlearning_teacher = AutoModelForCausalLM.from_pretrained('./models/distilgpt2_baseline')
 # unlearning_teacher = quantizer.quantize_model(unlearning_teacher, tokenizer)
 # unlearning_teacher.to(device)
 
@@ -216,14 +229,6 @@ retain_train = trainset.filter(lambda example: example["continuation"]["toxicity
 #forget_train = forget_train.select(range(int(total_size * args.forget_perc)))
 #retain_train = retain_train.select(range(int(total_size * (1 - args.forget_perc))))
 
-if args.use_sample:
-    forget_train = forget_train.select(range(int(256)))
-    retain_train = retain_train.select(range(int(256)))
-
-print('total dataset size : ', len(trainset))
-print('forget train size : ', len(forget_train))
-print('retain train size : ', len(retain_train))
-
 forget_valid = validset.filter(lambda example: example["continuation"]["toxicity"] is not None and example["continuation"]["toxicity"] > 0.5)
 retain_valid = validset.filter(lambda example: example["continuation"]["toxicity"] is None or example["continuation"]["toxicity"] <= 0.5)
 
@@ -233,6 +238,16 @@ forget_train = forget_train.remove_columns(["prompt", "continuation"])
 retain_train = retain_train.remove_columns(["prompt", "continuation"])
 forget_valid = forget_valid.remove_columns(["prompt", "continuation"])
 retain_valid = retain_valid.remove_columns(["prompt", "continuation"])
+
+if args.use_sample:
+    forget_train = forget_train.select(range(int(256)))
+    retain_train = retain_train.select(range(int(256)))
+    forget_valid = forget_valid.select(range(int(256)))
+    retain_valid = retain_valid.select(range(int(256)))
+
+print('total dataset size : ', len(trainset))
+print('forget train size : ', len(forget_train))
+print('retain train size : ', len(retain_train))
 
 trainloader = DataLoader(trainset, num_workers=4, batch_size=args.b, shuffle=True)
 validloader = DataLoader(validset, num_workers=4, batch_size=args.b, shuffle=False)

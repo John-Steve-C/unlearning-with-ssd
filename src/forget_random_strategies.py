@@ -38,18 +38,24 @@ def get_metric_scores(
     valid_dl,
     device,
 ):
-    loss_acc_dict = evaluate(model, valid_dl, device)
     torch.cuda.empty_cache()
-    retain_acc_dict = evaluate(model, retain_valid_dl, device)
-    torch.cuda.empty_cache()
+    
     # batch size need to transfer from main
     # zrf = UnLearningScore(model, unlearning_teacher, forget_valid_dl, 1, device)
     zrf = 0
     # torch.cuda.empty_cache()
-    forget_acc_dict = evaluate(model, forget_valid_dl, device)
-    torch.cuda.empty_cache()
+
     # mia = get_membership_attack_prob(retain_train_dl, forget_train_dl, valid_dl, model)
     mia = 0
+    # torch.cuda.empty_cache()
+
+    loss_acc_dict = evaluate(model, valid_dl, device)
+    torch.cuda.empty_cache()
+    retain_acc_dict = evaluate(model, retain_valid_dl, device)
+    torch.cuda.empty_cache()    
+    forget_acc_dict = evaluate(model, forget_valid_dl, device)
+    torch.cuda.empty_cache()
+    
 
     return (loss_acc_dict["Acc"], retain_acc_dict["Acc"], forget_acc_dict["Acc"], math.exp(retain_acc_dict["Loss"]), math.exp(forget_acc_dict["Loss"]), loss_acc_dict["Toxic_Level"], zrf, mia)
 
@@ -351,7 +357,7 @@ def pdr_tuning(
     optimizer = torch.optim.SGD(model.parameters(), lr=0.1)
 
     pdr = ssd.ParameterPerturber(model, optimizer, device, parameters)
-    model = model.eval()
+    model.eval()
     
     sample_importances = pdr.calc_importance(forget_train_dl)
     print(sample_importances)
@@ -392,7 +398,7 @@ def imp_pruning(
 
     pdr = imp.ParameterPerturber(model, optimizer, device)
     pdr.freeze_neurons()
-    model = model.eval()
+    model.eval()
     
     retain_importances = get_importance(kwargs["retain_importances_pkl"], pdr, retain_train_dl, kwargs["forget_type"], kwargs["load_from_file"])
     forget_importances = get_importance(kwargs["forget_importances_pkl"], pdr, forget_train_dl, kwargs["forget_type"], kwargs["load_from_file"])
@@ -443,7 +449,7 @@ def imp_pruning_large(
     modify_method = kwargs["modify_method"]
 
     pdr = imp_large.ParameterPerturber(model, optimizer, device)
-    model = model.eval()
+    model.eval()
         
     retain_importances = get_importance(kwargs["retain_importances_pkl"], pdr, retain_train_dl, kwargs["forget_type"], kwargs["load_from_file"])
     print("re, ", retain_importances)
@@ -496,7 +502,7 @@ def imp_pruning_large(
 #     modify_method = kwargs["modify_method"]
 
 #     pdr_1 = imp_large.ParameterPerturber(model, optimizer, device)
-#     model = model.eval()
+#     model.eval()
         
 #     retain_importances = get_importance(kwargs["retain_importances_pkl"], pdr_1, retain_train_dl, 'perturb', kwargs["load_from_file"])
 #     forget_importances = get_importance(kwargs["forget_importances_pkl"], pdr_1, forget_train_dl, 'perturb', kwargs["load_from_file"])
@@ -565,7 +571,7 @@ def imp_pruning_large(
 #     modify_method = kwargs["modify_method"]
 
 #     pdr_1 = imp_new.ParameterPerturber(model, optimizer, device)
-#     model = model.eval()
+#     model.eval()
         
 #     retain_importances = get_importance(kwargs["retain_importances_pkl"], pdr_1, retain_train_dl, kwargs["forget_type"], kwargs["load_from_file"])
 #     forget_importances = get_importance(kwargs["forget_importances_pkl"], pdr_1, forget_train_dl, kwargs["forget_type"], kwargs["load_from_file"])
@@ -636,7 +642,8 @@ def mixture_pruning(
     modify_method = kwargs["modify_method"]
 
     pdr = imp_mix.ParameterPerturber(model, optimizer, device)
-    model = model.eval()
+    # because the model now is wrapped by DeepspeedEngine, and the .eval() member is None
+    model.eval()
 
     if kwargs["load_from_file"]:
         with open(kwargs["forget_importances_pkl"], "rb") as file:

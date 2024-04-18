@@ -28,7 +28,10 @@ toxic_cls_model.eval()
 def normalize_list(lst):
     min_val = min(lst)
     max_val = max(lst)
-    return [(x - min_val) / (max_val - min_val) for x in lst]
+    if min_val == max_val:
+        return [0] * len(lst)
+    else:
+        return [(x - min_val) / (max_val - min_val) for x in lst]
 
 @torch.no_grad()
 def evaluate(model, val_loader, device):
