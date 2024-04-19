@@ -645,22 +645,28 @@ def mixture_pruning(
     # because the model now is wrapped by DeepspeedEngine, and the .eval() member is None
     model.eval()
 
-    if kwargs["load_from_file"]:
-        with open(kwargs["forget_importances_pkl"], "rb") as file:
-            forget_imp1 = pickle.load(file)
-        with open(kwargs["forget_importances_pkl_2"], "rb") as file:
-            forget_imp2 = pickle.load(file)
+    # if kwargs["load_from_file"]:
+    #     with open(kwargs["forget_importances_pkl"], "rb") as file:
+    #         forget_imp1 = pickle.load(file)
+    #     with open(kwargs["forget_importances_pkl_2"], "rb") as file:
+    #         forget_imp2 = pickle.load(file)
         
-        print("load importance from file, length = ", len(forget_imp1), len(forget_imp2))
-    else:
-        forget_imp1, forget_imp2 = pdr.calc_importance(forget_train_dl, kwargs["forget_type"])
+    #     print("load importance from file, length = ", len(forget_imp1), len(forget_imp2))
+    # else:
+    #     forget_imp1, forget_imp2 = pdr.calc_importance(forget_train_dl, kwargs["forget_type"])
 
-        with open(kwargs["forget_importances_pkl"], "wb") as file:
-            pickle.dump(forget_imp1, file)
-        with open(kwargs["forget_importances_pkl_2"], "wb") as file:
-            pickle.dump(forget_imp2, file)
-        print("calculate importance, length = ", len(forget_imp1), len(forget_imp2))
+    #     with open(kwargs["forget_importances_pkl"], "wb") as file:
+    #         pickle.dump(forget_imp1, file)
+    #     with open(kwargs["forget_importances_pkl_2"], "wb") as file:
+    #         pickle.dump(forget_imp2, file)
+    #     print("calculate importance, length = ", len(forget_imp1), len(forget_imp2)) 
+
+    forget_imp1 = pdr.calc_importance(forget_train_dl, kwargs["forget_type"])
+    with open(kwargs["forget_importances_pkl"], "wb") as file:
+        pickle.dump(forget_imp1, file)
     
+    with open(kwargs["forget_importances_pkl_2"], "rb") as file:
+        forget_imp2 = pickle.load(file)
     forget_importances = [0] * len(forget_imp2)
 
     # allocate abs importance to parameters

@@ -137,20 +137,21 @@ class ParameterPerturber:
             
             gc.collect()
 
-            # calculate grad importance
+            # now we calculate the grad outside the program
+            # # calculate grad importance
             # self.opt.zero_grad()
 
-            # loss.requires_grad = True
+            # # loss.requires_grad = True
             # loss.backward()
-            self.model.backward(loss)
+            # # self.model.backward(loss)
 
-            with torch.no_grad():
-                idx = 0
-                for (name, p) in self.model.named_parameters():
-                    if p.grad is not None and name in self.actual_param_list:
-                        imp_2[idx] += torch.norm(p.grad.data.clone(), 2)
-                        # imp_2[idx] += p.grad.data.clone().pow(2)
-                        idx += 1
+            # with torch.no_grad():
+            #     idx = 0
+            #     for (name, p) in self.model.named_parameters():
+            #         if p.grad is not None and name in self.actual_param_list:
+            #             imp_2[idx] += torch.norm(p.grad.data.clone(), 2)
+            #             # imp_2[idx] += p.grad.data.clone().pow(2)
+            #             idx += 1
 
             torch.cuda.empty_cache()
 
@@ -162,7 +163,7 @@ class ParameterPerturber:
         else:
             importance = [math.sqrt(x / D_num) for x in total_cnt_list]
         # print("total neuron number: ", len(importance))      # stands for the total neuron number
-        return importance, imp_2
+        return importance
     
     def modify_neuron(
         self,

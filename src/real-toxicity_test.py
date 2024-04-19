@@ -35,8 +35,8 @@ from training_utils import *
 import transformers
 from transformers import AutoTokenizer, get_scheduler, AutoModelForCausalLM
 from datasets import load_dataset, concatenate_datasets
-from transformers.deepspeed import HfDeepSpeedConfig
-import deepspeed
+# from transformers.deepspeed import HfDeepSpeedConfig
+# import deepspeed
 
 # from optimum.gptq import GPTQQuantizer, load_quantized_model
 
@@ -143,8 +143,8 @@ tokenizer = transformers.AutoTokenizer.from_pretrained(
 )
 tokenizer.pad_token = tokenizer.eos_token
 
-ds_config = './df_config.json'
-dshf = HfDeepSpeedConfig(ds_config)
+# ds_config = './df_config.json'
+# dshf = HfDeepSpeedConfig(ds_config)
 
 # quantizer = GPTQQuantizer(bits=4, dataset="c4") # block_name_to_quantize = "model.decoder.layers", model_seqlen = 2048
 model = AutoModelForCausalLM.from_pretrained(args.model_name_or_path)
@@ -156,14 +156,14 @@ model = AutoModelForCausalLM.from_pretrained(args.model_name_or_path)
 # print(model.transformer.h[0].mlp.c_proj.weight.shape)
 # model = quantizer.quantize_model(model, tokenizer)
 
-# model.to(device)
+model.to(device)
 
-engine = deepspeed.initialize(model=model,
-                              model_parameters=model.parameters(),
-                              config_params=ds_config)
-print(engine)
-model = engine[0] #.module
-print(model)
+# engine = deepspeed.initialize(model=model,
+#                               model_parameters=model.parameters(),
+#                               config_params=ds_config)
+# print(engine)
+# model = engine[0] #.module
+# print(model)
 
 # or we can call it retrain model
 # unlearning_teacher = AutoModelForCausalLM.from_pretrained('./models/distilgpt2_baseline')

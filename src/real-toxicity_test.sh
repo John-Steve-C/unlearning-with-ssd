@@ -98,15 +98,30 @@ model_name_or_path=./models/distilgpt2_finetune
 #     -retain_importances_pkl imp_retain_tmp_std \
 #     > info_perturb_2.txt
 
-CUDA_VISIBLE_DEVICES=$DEVICE python3 real-toxicity_test.py -origin_model $origin_model -dataset $dataset -classes $n_classes -forget_perc $forget_perc -model_name_or_path $model_name_or_path -seed $seed -b $batch_size \
-    -method mixture_pruning \
-    -forget_type abs \
-    -modify_method zero \
-    -pruning_percent 0.2 \
-    -forget_importances_pkl forget_imp_3 \
-    -forget_importances_pkl_2 forget_imp_4 \
-    -load_from_file \
+# ---------------------------------------------------------------------------------------------------
+
+# CUDA_VISIBLE_DEVICES=$DEVICE python3 real-toxicity_test.py -origin_model $origin_model -dataset $dataset -classes $n_classes -forget_perc $forget_perc -model_name_or_path $model_name_or_path -seed $seed -b $batch_size \
+#     -method mixture_pruning \
+#     -forget_type abs \
+#     -modify_method zero \
+#     -pruning_percent 0.2 \
+#     -deepspeed_path ./df_config.json \
+#     -forget_importances_pkl forget_imp_3 \
+#     -forget_importances_pkl_2 forget_imp_4 \
+#     -load_from_file \
+#     > info_mix.txt
+
+torchrun --nproc_per_node=gpu real-toxicity_test.py -origin_model $origin_model -dataset $dataset -classes $n_classes -forget_perc $forget_perc -model_name_or_path $model_name_or_path -seed $seed -b $batch_size -method mixture_pruning -forget_type abs -modify_method zero -pruning_percent 0.2 -deepspeed_path ./df_config.json -forget_importances_pkl forget_imp_3 -forget_importances_pkl_2 forget_imp_4 -load_from_file \
+    --per_device_train_batch_size 8 \
+    --per_device_eval_batch_size 8 \
+    --gradient_accumulation_steps 1 \
+    --evaluation_strategy "steps" \
+    --deepspeed df_config.json \
     > info_mix.txt
+
+deepspeed --num_gpus=2 \
+    real-toxicity_test.py -origin_model $origin_model -dataset $dataset -classes $n_classes -forget_perc $forget_perc -model_name_or_path $model_name_or_path -seed $seed -b $batch_size -method mixture_pruning -forget_type abs -modify_method zero -pruning_percent 0.2 \
+    --deepspeed --deepspeed_config ds_config.json \
 
 reset_cuda
 

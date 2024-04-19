@@ -15,3 +15,5 @@ scipy
 accelerate
 evaluate
 chardet
+deepspeed
+torchvision
