@@ -5,28 +5,28 @@ reset_cuda(){
 pip uninstall transformer-engine
 
 # get grad importance
-# export WANDB_RUN_NAME=$1
-# torchrun --nproc_per_node=gpu get_grad_importance.py \
-#     --model_name_or_path ./models/distilgpt2_finetune\
-#     --bf16 True \
-#     --output_dir ./imps\ 
-#     --num_train_epochs 2 \
-#     --per_device_train_batch_size 8 \
-#     --per_device_eval_batch_size 8 \
-#     --gradient_accumulation_steps 1 \
-#     --evaluation_strategy "steps" \
-#     --eval_steps 100 \
-#     --save_strategy "steps" \
-#     --save_steps 2000 \
-#     --save_total_limit 1 \
-#     --learning_rate 2e-5 \
-#     --weight_decay 0. \
-#     --warmup_ratio 0.03 \
-#     --lr_scheduler_type "cosine" \
-#     --logging_steps 1 \
-#     --tf32 True \
-#     --retain_only True \
-#     --deepspeed deepspeed.json \
+export WANDB_RUN_NAME=$1
+torchrun --nproc_per_node=gpu get_grad_importance.py \
+    --model_name_or_path ./models/distilgpt2_finetune\
+    --bf16 True \
+    --output_dir ./imps\ 
+    --num_train_epochs 2 \
+    --per_device_train_batch_size 8 \
+    --per_device_eval_batch_size 8 \
+    --gradient_accumulation_steps 1 \
+    --evaluation_strategy "steps" \
+    --eval_steps 100 \
+    --save_strategy "steps" \
+    --save_steps 2000 \
+    --save_total_limit 1 \
+    --learning_rate 2e-5 \
+    --weight_decay 0. \
+    --warmup_ratio 0.03 \
+    --lr_scheduler_type "cosine" \
+    --logging_steps 1 \
+    --tf32 True \
+    --retain_only True \
+    --deepspeed deepspeed.json \
 
 reset_cuda
 
